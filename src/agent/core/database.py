@@ -131,6 +131,8 @@ class DatabaseManager:
             if self.database_url.startswith("sqlite"):
                 db_path = self.database_url.replace("sqlite:///", "")
                 self.connection = await aiosqlite.connect(db_path)
+                # 行を辞書形式で扱えるように設定
+                self.connection.row_factory = aiosqlite.Row
             
             # 初期データ投入
             await self._insert_initial_data()

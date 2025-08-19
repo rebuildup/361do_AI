@@ -45,7 +45,11 @@ services:
     depends_on:
       - ollama
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - AGENT_OLLAMA_BASE_URL=http://ollama:11434
+      - AGENT_OLLAMA_MODEL=qwen2:7b-instruct
+      - AGENT_DATABASE_URL=sqlite:////app/data/agent.db
+      - AGENT_WEB_DESIGN_ENABLED=true
+      - AGENT_ENABLE_WEB_SEARCH=true
       - PYTHONPATH=/app/src
     restart: unless-stopped
 
