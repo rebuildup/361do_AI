@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""
+AI Agent Studio - Main Application
+自己学習型AIエージェントのメインアプリケーション
+"""
+
+import asyncio
+import logging
+import os
+import sys
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from loguru import logger
+
+# プロジェクトルートをPATHに追加
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from agent.core.agent_manager import AgentManager
+from agent.core.config import Config
+from agent.core.database import DatabaseManager
+from agent.self_tuning.continuous_learning import ContinuousLearningEngine
+
+
+class AgentApplication:
+    """メインアプリケーションクラス"""
+    
+    def __init__(self):
+        self.config = Config()
+        self.db_manager = None
+        self.agent_manager = None
+        self.learning_engine = None
+        
+    async def initialize(self):
+        """アプリケーションの初期化"""
+        logger.info("Initializing AI Agent Studio...")
+        
+        # データベース初期化
+        self.db_manager = DatabaseManager(self.config.database_url)
+        await self.db_manager.initialize()
+        logger.info("Database initialized")
+        
+        # エージェントマネージャー初期化
+        self.agent_manager = AgentManager(
+            config=self.config,
+            db_manager=self.db_manager
+        )
+        await self.agent_manager.initialize()
+        logger.info("Agent Manager initialized")
+        
+        # 継続学習エンジン初期化
+        self.learning_engine = ContinuousLearningEngine(
+            agent_manager=self.agent_manager,
+            db_manager=self.db_manager,
+            config=self.config
+        )
+        await self.learning_engine.start_learning_cycle()
+        logger.info("Continuous Learning Engine started")
+        
+        logger.info("AI Agent Studio initialized successfully!")
+    
+    async def shutdown(self):
+        """アプリケーションのシャットダウン"""
+        logger.info("Shutting down AI Agent Studio...")
+        
+        if self.learning_engine:
+            await self.learning_engine.stop()
+        
+        if self.agent_manager:
+            await self.agent_manager.shutdown()
+        
+        if self.db_manager:
+            await self.db_manager.close()
+        
+        logger.info("AI Agent Studio shutdown complete")
+
+
+# グローバルアプリケーションインスタンス
+app_instance = AgentApplication()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """アプリケーションライフサイクル管理"""
+    # 起動時
+    await app_instance.initialize()
+    yield
+    # シャットダウン時
+    await app_instance.shutdown()
+
+
+# FastAPIアプリケーション作成
+app = FastAPI(
+    title="AI Agent Studio",
+    description="自己学習型AIエージェントシステム",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+async def health_check():
+    """ヘルスチェックエンドポイント"""
+    return {"status": "healthy", "service": "AI Agent Studio"}
+
+
+@app.get("/api/status")
+async def get_status():
+    """システムステータス取得"""
+    try:
+        status = await app_instance.agent_manager.get_system_status()
+        return JSONResponse(content=status)
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat")
+async def chat(request: dict):
+    """チャットエンドポイント"""
+    try:
+        user_input = request.get("message", "")
+        session_id = request.get("session_id")
+        
+        if not user_input:
+            raise HTTPException(status_code=400, detail="Message is required")
+        
+        response = await app_instance.agent_manager.process_message(
+            user_input=user_input,
+            session_id=session_id
+        )
+        
+        return JSONResponse(content=response)
+    
+    except Exception as e:
+        logger.error(f"Chat processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/feedback")
+async def submit_feedback(request: dict):
+    """フィードバック送信エンドポイント"""
+    try:
+        conversation_id = request.get("conversation_id")
+        feedback_score = request.get("feedback_score")  # -1, 0, 1
+        feedback_comment = request.get("feedback_comment", "")
+        
+        if conversation_id is None or feedback_score is None:
+            raise HTTPException(
+                status_code=400, 
+                detail="conversation_id and feedback_score are required"
+            )
+        
+        await app_instance.learning_engine.process_user_feedback(
+            conversation_id=conversation_id,
+            feedback_score=feedback_score,
+            feedback_comment=feedback_comment
+        )
+        
+        return JSONResponse(content={"status": "feedback_received"})
+    
+    except Exception as e:
+        logger.error(f"Feedback processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/learning/report")
+async def get_learning_report():
+    """学習レポート取得"""
+    try:
+        report = await app_instance.learning_engine.generate_learning_report()
+        return JSONResponse(content=report)
+    
+    except Exception as e:
+        logger.error(f"Learning report generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/web-design/generate")
+async def generate_web_design(request: dict):
+    """Webデザイン生成エンドポイント"""
+    try:
+        user_requirements = request.get("requirements", "")
+        
+        if not user_requirements:
+            raise HTTPException(status_code=400, detail="Requirements are required")
+        
+        design_result = await app_instance.agent_manager.generate_web_design(
+            requirements=user_requirements
+        )
+        
+        return JSONResponse(content=design_result)
+    
+    except Exception as e:
+        logger.error(f"Web design generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def setup_logging():
+    """ログ設定"""
+    # Loguruの設定
+    logger.remove()  # デフォルトハンドラーを削除
+    
+    # コンソール出力
+    logger.add(
+        sys.stdout,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+               "<level>{level: <8}</level> | "
+               "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+               "<level>{message}</level>",
+        level="INFO"
+    )
+    
+    # ファイル出力
+    logger.add(
+        "/app/data/logs/agent.log",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+        level="DEBUG",
+        rotation="10 MB",
+        retention="7 days"
+    )
+
+
+if __name__ == "__main__":
+    setup_logging()
+    
+    logger.info("Starting AI Agent Studio...")
+    
+    # 開発環境での起動設定
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )

@@ -1,0 +1,52 @@
+{
+  "ui": {
+    "title": "AI Agent Studio",
+    "default_locale": "ja",
+    "theme": "dark",
+    "prompt_suggestions": [
+      {
+        "title": "🔍 Web検索",
+        "content": "最新のAI技術について調べてください"
+      },
+      {
+        "title": "🎨 Webデザイン",
+        "content": "レスポンシブな企業サイトを作成してください"
+      },
+      {
+        "title": "📁 ファイル操作",
+        "content": "プロジェクトの構造を確認してください"
+      },
+      {
+        "title": "🤖 エージェント機能",
+        "content": "あなたの機能について詳しく教えてください"
+      },
+      {
+        "title": "🛠️ システム情報",
+        "content": "現在のシステム状態を確認してください"
+      }
+    ]
+  },
+  "models": {
+    "default": "qwen2:7b-instruct",
+    "list": ["qwen2:7b-instruct"]
+  },
+  "ollama": {
+    "base_url": "http://host.docker.internal:11436",
+    "default_model": "ai-agent-studio"
+  },
+  "pipelines": {
+    "enabled": true,
+    "agent_pipeline": {
+      "enabled": true,
+      "base_url": "http://agent:8000"
+    }
+  },
+  "features": {
+    "enable_signup": false,
+    "enable_web_search": true,
+    "enable_image_generation": false,
+    "enable_community_sharing": false,
+    "enable_admin_export": true,
+    "enable_pipelines": true
+  }
+}
