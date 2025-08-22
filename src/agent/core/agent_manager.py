@@ -4,6 +4,7 @@ Agent Manager
 """
 
 import asyncio
+import json
 import time
 import uuid
 from datetime import datetime
@@ -11,12 +12,13 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 from loguru import logger
+import os
 
 from agent.core.config import Config
 from agent.core.database import DatabaseManager
 from agent.core.ollama_client import OllamaClient
-from agent.tools.search_tool import SearchTool
 from agent.tools.file_tool import FileTool
+from agent.tools.learning_tool import LearningTool
 from agent.web_design.design_generator import WebDesignGenerator
 
 
@@ -29,6 +31,7 @@ class AgentManager:
         self.ollama_client = None
         self.tools = {}
         self.web_design_generator = None
+        self.learning_tool = None
         self.active_sessions = {}
         
     async def initialize(self):
@@ -41,6 +44,15 @@ class AgentManager:
         
         # ツール初期化
         await self._initialize_tools()
+        
+        # 学習ツール初期化
+        if self.config.is_learning_enabled:
+            self.learning_tool = LearningTool(
+                db_manager=self.db,
+                config=self.config,
+                ollama_client=self.ollama_client,
+                agent_manager=self
+            )
         
         # Webデザイン生成器初期化
         if self.config.is_web_design_enabled:
@@ -57,11 +69,17 @@ class AgentManager:
         """ツール初期化"""
         # 検索ツール
         if self.config.settings.enable_web_search:
-            self.tools['search'] = SearchTool()
-            await self.tools['search'].initialize()
+            try:
+                from agent.tools.search_tool import SearchTool
+                self.tools['search'] = SearchTool()
+                await self.tools['search'].initialize()
+            except Exception as e:
+                logger.warning(f"SearchTool could not be initialized (optional): {e}")
         
         # ファイルツール
-        self.tools['file'] = FileTool()
+        # プロジェクトのルートディレクトリを取得
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        self.tools['file'] = FileTool(project_root=project_root)
         await self.tools['file'].initialize()
         
         logger.info(f"Initialized {len(self.tools)} tools")
@@ -76,6 +94,10 @@ class AgentManager:
         for tool in self.tools.values():
             if hasattr(tool, 'close'):
                 await tool.close()
+        
+        # 学習ツール終了処理
+        if self.learning_tool:
+            await self.learning_tool.stop_learning_system()
         
         logger.info("Agent Manager shutdown complete")
     
@@ -190,10 +212,10 @@ class AgentManager:
         ユーザー入力: {user_input}
         
         以下の観点から分析し、JSON形式で回答してください:
-        1. primary_intent: 主要な意図 (general_chat, web_search, web_design, file_operation, technical_help)
+        1. primary_intent: 主要な意図 (general_chat, web_search, web_design, file_operation, self_edit, technical_help)
         2. confidence: 確信度 (0.0-1.0)
         3. entities: 抽出されたエンティティ
-        4. requires_tools: 必要なツール (search, file, web_design)
+        4. requires_tools: 必要なツール (search, file, web_design, self_edit)
         5. complexity: 複雑度 (simple, medium, complex)
         
         回答例:
@@ -280,6 +302,10 @@ class AgentManager:
             response = await self._handle_web_design(user_input, session)
             tools_used.append('web_design')
             
+        elif primary_intent == 'self_edit' and 'file' in self.tools:
+            response = await self._handle_self_edit(user_input, session)
+            tools_used.append('file')
+
         elif primary_intent == 'web_search' and 'search' in self.tools:
             response = await self._handle_web_search(user_input, session)
             tools_used.append('search')
@@ -344,6 +370,122 @@ class AgentManager:
         except Exception as e:
             logger.error(f"Web search failed: {e}")
             return "検索中にエラーが発生しました。別の検索語句で試してみてください。"
+
+    async def _handle_self_edit(
+        self,
+        user_input: str,
+        session: Dict
+    ) -> str:
+        """自己修正 / ファイル・プロンプト・学習データの簡易操作ハンドラ
+
+        サポートするコマンド（簡易）:
+        - read file <path>
+        - write file <path>\n<content>
+        - append file <path>\n<content>
+        - update prompt <name>: <content>
+        - add learning data: <content>  (カテゴリは任意に指定可能)
+        """
+        try:
+            file_tool = self.tools.get('file')
+            lt = self.learning_tool
+
+            text = user_input.strip()
+            lower = text.lower()
+
+            # read file
+            if lower.startswith('read file'):
+                parts = text.split(None, 2)
+                if len(parts) < 3:
+                    return "読み取り先のファイルパスが指定されていません。例: read file src/path/file.txt"
+                path = parts[2].strip()
+                if not file_tool:
+                    return "ファイルツールが利用できません。"
+                result = await file_tool.read_file(path)
+                if result.get('error'):
+                    return f"ファイル読み取りエラー: {result['error']}"
+                return result.get('content', '')
+
+            # write file (expects newline-separated: write file <path>\n<content>)
+            if lower.startswith('write file'):
+                # split into header and body
+                header, _, body = text.partition('\n')
+                parts = header.split(None, 2)
+                if len(parts) < 3:
+                    return "書き込み先のファイルパスが指定されていません。例: write file src/path/file.txt\nコンテンツ"
+                path = parts[2].strip()
+                if not file_tool:
+                    return "ファイルツールが利用できません。"
+                write_res = await file_tool.write_file(path, body)
+                if write_res.get('error'):
+                    return f"ファイル書き込みエラー: {write_res['error']}"
+                return write_res.get('message', 'ファイルを書き込みました。')
+
+            # append file
+            if lower.startswith('append file'):
+                header, _, body = text.partition('\n')
+                parts = header.split(None, 2)
+                if len(parts) < 3:
+                    return "追記先のファイルパスが指定されていません。例: append file src/path/file.txt\n追記内容"
+                path = parts[2].strip()
+                if not file_tool:
+                    return "ファイルツールが利用できません。"
+                # read existing
+                existing = await file_tool.read_file(path)
+                if existing.get('error'):
+                    # if file doesn't exist, create it
+                    new_content = body
+                else:
+                    new_content = existing.get('content', '') + '\n' + body
+                write_res = await file_tool.write_file(path, new_content)
+                if write_res.get('error'):
+                    return f"ファイル追記エラー: {write_res['error']}"
+                return write_res.get('message', 'ファイルに追記しました。')
+
+            # update prompt: update prompt <name>: <content>
+            if lower.startswith('update prompt') or lower.startswith('set prompt'):
+                # accept formats: update prompt name: content
+                m = text.split(':', 1)
+                if len(m) < 2:
+                    return "プロンプト更新のフォーマットが不正です。例: update prompt greeting_prompt: 新しい内容"
+                left = m[0]
+                content = m[1].strip()
+                parts = left.split(None, 2)
+                if len(parts) < 3:
+                    return "プロンプト名が指定されていません。例: update prompt greeting_prompt: 新しい内容"
+                name = parts[2].strip()
+                if not lt:
+                    return "学習ツールが利用できません。"
+                res = await lt.update_prompt_template(name=name, content=content)
+                return res.get('message', str(res))
+
+            # add learning data: either JSON or plain text after the colon
+            if lower.startswith('add learning data') or lower.startswith('add learning'):
+                # allow: add learning data: {json} or add learning data: content text
+                _, _, rest = text.partition(':')
+                payload = rest.strip()
+                if not payload:
+                    return "追加する学習データの内容が指定されていません。例: add learning data: 学習内容"
+                # try to parse JSON
+                try:
+                    data_obj = json.loads(payload)
+                    content = data_obj.get('content') or data_obj.get('text') or json.dumps(data_obj, ensure_ascii=False)
+                    category = data_obj.get('category', 'custom')
+                    tags = data_obj.get('tags', [])
+                except Exception:
+                    content = payload
+                    category = 'custom'
+                    tags = []
+
+                if not lt:
+                    return "学習ツールが利用できません。"
+                add_res = await lt.add_custom_learning_data(content=content, category=category, tags=tags)
+                return add_res.get('message', str(add_res))
+
+            return "サポートされていない自己編集コマンドです。"
+
+        except Exception as e:
+            logger.error(f"Self-edit handler failed: {e}")
+            return f"自己編集処理でエラーが発生しました: {e}"
     
     async def _handle_general_chat(
         self,
@@ -353,9 +495,24 @@ class AgentManager:
     ) -> str:
         """一般的な会話処理"""
         
-        # システムプロンプト取得
+        # 学習システムから適用すべきルールとプロンプトを取得
+        learned_rules = await self._get_learned_conversational_rules()
+        optimized_prompt = await self._get_optimized_system_prompt()
+        
+        # システムプロンプト取得（最適化されたものを優先）
         system_prompt_template = await self.db.get_prompt_template("system_prompt")
-        system_prompt = system_prompt_template['template_content'] if system_prompt_template else ""
+        base_system_prompt = system_prompt_template['template_content'] if system_prompt_template else ""
+        
+        # 最適化されたプロンプトがあれば使用
+        if optimized_prompt:
+            system_prompt = optimized_prompt
+        else:
+            system_prompt = base_system_prompt
+        
+        # 学習された会話ルールをシステムプロンプトに追加
+        if learned_rules:
+            rules_text = "\n".join([f"- {rule}" for rule in learned_rules])
+            system_prompt += f"\n\n適用すべき会話ルール:\n{rules_text}"
         
         # コンテキスト構築
         context = session.get('context', [])
@@ -397,11 +554,93 @@ class AgentManager:
                 temperature=0.7
             )
             
+            # 学習システムに会話データを記録
+            await self._record_conversation_for_learning(user_input, response, session)
+            
             return response
             
         except Exception as e:
             logger.error(f"General chat processing failed: {e}")
             return "申し訳ありませんが、応答の生成中にエラーが発生しました。"
+    
+    async def _get_learned_conversational_rules(self) -> List[str]:
+        """学習された会話ルールを取得"""
+        try:
+            if not self.learning_tool:
+                return []
+            
+            # 学習データから会話ルールを取得
+            learning_data = await self.learning_tool.get_learning_data(category="conversation_rules")
+            
+            rules = []
+            for item in learning_data.get('data', []):
+                if item.get('quality_score', 0) > 0.7:  # 高品質なルールのみ
+                    try:
+                        # JSONとしてパースを試行
+                        rule_data = json.loads(item['content'])
+                        if isinstance(rule_data, dict):
+                            rules.append(rule_data.get('rule', item['content']))
+                        else:
+                            rules.append(item['content'])
+                    except json.JSONDecodeError:
+                        # JSONでない場合はそのまま使用
+                        rules.append(item['content'])
+            
+            return rules[:5]  # 上位5件まで
+            
+        except Exception as e:
+            logger.error(f"Failed to get learned rules: {e}")
+            return []
+    
+    async def _get_optimized_system_prompt(self) -> Optional[str]:
+        """最適化されたシステムプロンプトを取得"""
+        try:
+            if not self.learning_tool:
+                return None
+            
+            # プロンプト最適化履歴から最新の最適化されたプロンプトを取得
+            # ここでは簡易的に学習データから取得
+            learning_data = await self.learning_tool.get_learning_data(category="prompt_optimization")
+            
+            for item in learning_data.get('data', []):
+                if item.get('quality_score', 0) > 0.8:  # 高品質なプロンプトのみ
+                    return item['content']
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get optimized prompt: {e}")
+            return None
+    
+    async def _record_conversation_for_learning(
+        self,
+        user_input: str,
+        agent_response: str,
+        session: Dict
+    ):
+        """学習のための会話データを記録"""
+        try:
+            if not self.learning_tool:
+                return
+            
+            # 会話データを学習システムに送信
+            conversation_data = {
+                'user_input': user_input,
+                'agent_response': agent_response,
+                'session_context': session.get('context', []),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # 学習データとして追加
+            await self.learning_tool.add_custom_learning_data(
+                content=json.dumps(conversation_data, ensure_ascii=False),
+                category="conversation_history",
+                quality_score=0.8,
+                tags=["conversation", "learning"]
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to record conversation for learning: {e}")
     
     async def _get_relevant_knowledge(self, user_input: str) -> List[Dict]:
         """関連する知識をデータベースから取得"""

@@ -143,6 +143,25 @@ class OllamaClient:
                     continue
         
         return full_response.strip()
+
+    async def generate_response(
+        self,
+        prompt: str,
+        max_tokens: int = 1000,
+        temperature: float = 0.7,
+        system_prompt: Optional[str] = None,
+        stream: bool = False,
+    ) -> str:
+        """互換性ラッパー: 古いコードが generate_response を呼んでいる場合に対応します。
+        既存の generate() を委譲して動作を保ちます。
+        """
+        return await self.generate(
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system_prompt=system_prompt,
+            stream=stream,
+        )
     
     async def chat(
         self,

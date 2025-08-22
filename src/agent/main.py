@@ -224,8 +224,11 @@ def setup_logging():
     )
     
     # ファイル出力
+    # パスはConfigから取得するように変更する可能性
+    log_file_path = os.path.join(os.path.dirname(__file__), "..", "data", "logs", "agent.log")
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     logger.add(
-        "/app/data/logs/agent.log",
+        log_file_path,
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
         level="DEBUG",
         rotation="10 MB",
@@ -233,16 +236,53 @@ def setup_logging():
     )
 
 
+async def run_manual_learning():
+    """手動で自己学習サイクルを実行する"""
+    logger.info("手動学習サイクルを開始します...")
+    
+    config = Config()
+    db_manager = None
+    agent_manager_instance = None
+
+    try:
+        db_manager = DatabaseManager(config.database_url)
+        await db_manager.initialize()
+
+        agent_manager_instance = AgentManager(config=config, db_manager=db_manager)
+        await agent_manager_instance.initialize()
+        
+        # self_tuningモジュールはここでインポート
+        from agent.self_tuning.learning_loop import LearningLoop
+        learning_loop = LearningLoop(config, agent_manager_instance.ollama_client)
+        
+        logger.info("手動学習のための初期化が完了しました。")
+        await learning_loop.run_learning_cycle()
+        
+    except Exception as e:
+        logger.error(f"手動学習サイクル中にエラーが発生しました: {e}", exc_info=True)
+    finally:
+        logger.info("シャットダウン処理を開始します。")
+        if agent_manager_instance:
+            await agent_manager_instance.shutdown()
+        if db_manager:
+            await db_manager.close()
+    
+    logger.info("手動学習サイクルが完了しました。")
+
+
 if __name__ == "__main__":
     setup_logging()
     
-    logger.info("Starting AI Agent Studio...")
-    
-    # 開発環境での起動設定
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    if len(sys.argv) > 1 and sys.argv[1] == 'learn':
+        # `python -m agent.main learn` のように実行された場合
+        asyncio.run(run_manual_learning())
+    else:
+        # 通常のサーバー起動
+        logger.info("Starting AI Agent Studio...")
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+            log_level="info"
+        )
