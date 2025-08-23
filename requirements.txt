@@ -1,0 +1,9 @@
+pytest>=7.0
+pytest-asyncio
+aiosqlite
+SQLAlchemy
+aiohttp
+loguru
+pydantic-settings
+beautifulsoup4
+ollama

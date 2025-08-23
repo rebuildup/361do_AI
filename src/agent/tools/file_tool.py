@@ -35,7 +35,7 @@ class FileTool:
         """
         if not self._is_safe_path(directory):
             return {"error": f"アクセスが拒否されました: {directory}"}
-        
+
         try:
             full_path = os.path.join(self.project_root, directory)
             items = os.listdir(full_path)

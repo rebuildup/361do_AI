@@ -94,7 +94,7 @@ class OptimizationModule:
 
         for example in examples[:5]: # サンプルが多すぎないように制限
             prompt += f"\n- 指示: {example.get('instruction')}\n- 理想的な応答: {example.get('output')}\n"
-        
+
         prompt += """
 # あなたのタスク
 上記すべてを考慮し、改善された新しいシステムプロンプトを生成してください。
@@ -112,12 +112,12 @@ async def main():
     await ollama_client.initialize()
 
     optimizer = OptimizationModule(config, ollama_client)
-    
+
     # 評価スコアが低いと仮定
     test_score = 0.6
-    
+
     new_prompt = await optimizer.optimize_prompt(test_score)
-    
+
     if new_prompt:
         print("--- 生成された新しいプロンプト ---")
         print(new_prompt)

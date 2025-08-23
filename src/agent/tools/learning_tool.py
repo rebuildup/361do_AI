@@ -3,7 +3,6 @@ Learning Tool
 自己学習システムを操作するためのツール
 """
 
-import asyncio
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -18,7 +17,7 @@ from agent.self_tuning.advanced_learning import AdvancedLearningSystem
 
 class LearningTool:
     """自己学習ツール"""
-    
+
     def __init__(
         self,
         db_manager: DatabaseManager,
@@ -36,7 +35,7 @@ class LearningTool:
             config=config,
             ollama_client=ollama_client
         )
-    
+
     async def start_learning_system(self) -> Dict[str, Any]:
         """学習システムを開始"""
         try:
@@ -53,7 +52,7 @@ class LearningTool:
                 "message": f"Failed to start learning system: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def stop_learning_system(self) -> Dict[str, Any]:
         """学習システムを停止"""
         try:
@@ -70,7 +69,7 @@ class LearningTool:
                 "message": f"Failed to stop learning system: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def get_learning_status(self) -> Dict[str, Any]:
         """学習システムの状態を取得"""
         try:
@@ -87,22 +86,22 @@ class LearningTool:
                 "message": f"Failed to get learning status: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def manually_trigger_learning_cycle(self) -> Dict[str, Any]:
         """手動で学習サイクルを実行"""
         try:
             # 学習データ分析
             await self.learning_system._analyze_and_improve_learning_data()
-            
+
             # プロンプト最適化
             await self.learning_system._optimize_prompts()
-            
+
             # 知識抽出
             await self.learning_system._extract_knowledge_from_conversations()
-            
+
             # パフォーマンス分析
             await self.learning_system._analyze_performance_and_adapt()
-            
+
             return {
                 "status": "success",
                 "message": "Manual learning cycle completed successfully",
@@ -115,7 +114,7 @@ class LearningTool:
                 "message": f"Failed to trigger manual learning cycle: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def add_custom_learning_data(
         self,
         content: str,
@@ -136,7 +135,7 @@ class LearningTool:
                 tags=json.dumps(tags or []),
                 metadata_json=json.dumps(metadata_json or {})
             )
-            
+
             return {
                 "status": "success",
                 "message": f"Custom learning data added with ID: {data_id}",
@@ -150,7 +149,7 @@ class LearningTool:
                 "message": f"Failed to add custom learning data: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def get_learning_data(
         self,
         category: Optional[str] = None,
@@ -163,11 +162,11 @@ class LearningTool:
                 min_score=min_quality,
                 limit=limit
             )
-            
+
             # カテゴリでフィルタリング
             if category:
                 data = [item for item in data if item.get('category') == category]
-            
+
             return {
                 "status": "success",
                 "data": data,
@@ -181,7 +180,7 @@ class LearningTool:
                 "message": f"Failed to get learning data: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def update_learning_data(
         self,
         data_id: str,
@@ -195,7 +194,7 @@ class LearningTool:
                 content=content,
                 quality_score=quality_score
             )
-            
+
             return {
                 "status": "success",
                 "message": f"Learning data {data_id} updated successfully",
@@ -208,12 +207,12 @@ class LearningTool:
                 "message": f"Failed to update learning data: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def delete_learning_data(self, data_id: str) -> Dict[str, Any]:
         """学習データを削除"""
         try:
             await self.db.delete_learning_data(data_id)
-            
+
             return {
                 "status": "success",
                 "message": f"Learning data {data_id} deleted successfully",
@@ -226,26 +225,26 @@ class LearningTool:
                 "message": f"Failed to delete learning data: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def get_knowledge_base(self, category: Optional[str] = None) -> Dict[str, Any]:
         """知識ベースを取得"""
         try:
             # 知識ベースの統計を取得
             stats = await self.db.get_knowledge_base_stats()
-            
+
             # 知識アイテムを取得（簡易実装）
             query = "SELECT * FROM knowledge_items"
             params = []
-            
+
             if category:
                 query += " WHERE category = ?"
                 params.append(category)
-            
+
             query += " ORDER BY confidence DESC LIMIT 50"
-            
+
             rows = await self.db.execute_query(query, tuple(params))
             knowledge_items = [dict(row) for row in rows] if rows else []
-            
+
             return {
                 "status": "success",
                 "stats": stats,
@@ -259,7 +258,7 @@ class LearningTool:
                 "message": f"Failed to get knowledge base: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def add_knowledge_item(
         self,
         fact: str,
@@ -277,7 +276,7 @@ class LearningTool:
                 source_context=source_context,
                 applicability=applicability
             )
-            
+
             return {
                 "status": "success",
                 "message": "Knowledge item added successfully",
@@ -290,7 +289,7 @@ class LearningTool:
                 "message": f"Failed to add knowledge item: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def optimize_specific_prompt(
         self,
         prompt_key: str,
@@ -303,11 +302,11 @@ class LearningTool:
                 "description": f"Optimized version of {prompt_key}",
                 "prompt": prompt_content
             }
-            
+
             optimized_prompt = await self.learning_system._optimize_single_prompt(
                 prompt_key, prompt_info
             )
-            
+
             if optimized_prompt:
                 return {
                     "status": "success",
@@ -330,22 +329,22 @@ class LearningTool:
                 "message": f"Failed to optimize prompt: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def get_performance_report(self, days: int = 7) -> Dict[str, Any]:
         """パフォーマンスレポートを取得"""
         try:
             # パフォーマンス指標を取得
             metrics = await self.db.get_performance_metrics(days=days)
-            
+
             # 学習データ統計
             learning_stats = await self.db.get_learning_data_stats()
-            
+
             # 知識ベース統計
             knowledge_stats = await self.db.get_knowledge_base_stats()
-            
+
             # プロンプト最適化統計
             prompt_stats = await self.db.get_prompt_optimization_stats()
-            
+
             report = {
                 "period_days": days,
                 "performance_metrics": metrics,
@@ -354,7 +353,7 @@ class LearningTool:
                 "prompt_optimization_stats": prompt_stats,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             return {
                 "status": "success",
                 "report": report
@@ -366,19 +365,19 @@ class LearningTool:
                 "message": f"Failed to get performance report: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def export_learning_data(self, format: str = "json") -> Dict[str, Any]:
         """学習データをエクスポート"""
         try:
             if format.lower() == "json":
                 # 学習データを取得
                 learning_data = await self.db.get_learning_data_by_quality(limit=1000)
-                
+
                 # 知識ベースを取得
                 knowledge_query = "SELECT * FROM knowledge_items ORDER BY confidence DESC LIMIT 1000"
                 knowledge_rows = await self.db.execute_query(knowledge_query)
                 knowledge_items = [dict(row) for row in knowledge_rows] if knowledge_rows else []
-                
+
                 export_data = {
                     "learning_data": learning_data,
                     "knowledge_items": knowledge_items,
@@ -386,7 +385,7 @@ class LearningTool:
                     "total_learning_items": len(learning_data),
                     "total_knowledge_items": len(knowledge_items)
                 }
-                
+
                 return {
                     "status": "success",
                     "format": "json",
@@ -406,12 +405,12 @@ class LearningTool:
                 "message": f"Failed to export learning data: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def import_learning_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """学習データをインポート"""
         try:
             imported_count = 0
-            
+
             # 学習データをインポート
             if "learning_data" in data:
                 for item in data["learning_data"]:
@@ -427,7 +426,7 @@ class LearningTool:
                         imported_count += 1
                     except Exception as e:
                         logger.warning(f"Failed to import learning data item: {e}")
-            
+
             # 知識アイテムをインポート
             if "knowledge_items" in data:
                 for item in data["knowledge_items"]:
@@ -442,7 +441,7 @@ class LearningTool:
                         imported_count += 1
                     except Exception as e:
                         logger.warning(f"Failed to import knowledge item: {e}")
-            
+
             return {
                 "status": "success",
                 "message": f"Successfully imported {imported_count} items",
@@ -465,7 +464,7 @@ class LearningTool:
             query = "SELECT * FROM prompt_templates ORDER BY created_at DESC"
             rows = await self.db.execute_query(query)
             templates = [dict(row) for row in rows] if rows else []
-            
+
             return {
                 "status": "success",
                 "data": templates,
@@ -479,12 +478,12 @@ class LearningTool:
                 "message": f"Failed to get prompt templates: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def add_prompt_template(
         self,
         name: str,
         content: str,
-        description: str = None
+        description: Optional[str] = None
     ) -> Dict[str, Any]:
         """プロンプトテンプレートを追加"""
         try:
@@ -525,7 +524,7 @@ class LearningTool:
                 except Exception as e2:
                     logger.error(f"Failed to update prompt template after insert failure: {e2}")
                     raise
-            
+
             return {
                 "status": "success",
                 "message": f"Prompt template '{name}' added successfully",
@@ -539,7 +538,7 @@ class LearningTool:
                 "message": f"Failed to add prompt template: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def update_prompt_template(
         self,
         name: str,
@@ -551,7 +550,7 @@ class LearningTool:
                 name=name,
                 template_content=content
             )
-            
+
             return {
                 "status": "success",
                 "message": f"Prompt template '{name}' updated successfully",
@@ -564,12 +563,12 @@ class LearningTool:
                 "message": f"Failed to update prompt template: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def delete_prompt_template(self, name: str) -> Dict[str, Any]:
         """プロンプトテンプレートを削除"""
         try:
             await self.db.delete_prompt_template(name)
-            
+
             return {
                 "status": "success",
                 "message": f"Prompt template '{name}' deleted successfully",
@@ -582,7 +581,7 @@ class LearningTool:
                 "message": f"Failed to delete prompt template: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def optimize_prompt_template(self, name: str) -> Dict[str, Any]:
         """プロンプトテンプレートを最適化"""
         try:
@@ -598,20 +597,20 @@ class LearningTool:
                         "message": f"Prompt template '{name}' not found after auto-create",
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             # 最適化実行
             result = await self.optimize_specific_prompt(
                 prompt_key=name,
                 prompt_content=template['template_content']
             )
-            
+
             if result.get('status') == 'success':
                 # 最適化されたプロンプトで更新
                 await self.db.update_prompt_template(
                     name=name,
                     template_content=result['optimized_prompt']
                 )
-                
+
                 return {
                     "status": "success",
                     "message": f"Prompt template '{name}' optimized successfully",
@@ -620,7 +619,7 @@ class LearningTool:
                 }
             else:
                 return result
-                
+
         except Exception as e:
             logger.error(f"Failed to optimize prompt template: {e}")
             return {
@@ -628,19 +627,19 @@ class LearningTool:
                 "message": f"Failed to optimize prompt template: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def export_prompt_templates(self) -> Dict[str, Any]:
         """プロンプトテンプレートをエクスポート"""
         try:
             templates = await self.get_prompt_templates()
-            
+
             if templates.get('status') == 'success':
                 export_data = {
                     "prompt_templates": templates.get('data', []),
                     "export_timestamp": datetime.now().isoformat(),
                     "total_templates": templates.get('count', 0)
                 }
-                
+
                 return {
                     "status": "success",
                     "data": export_data,
@@ -649,7 +648,7 @@ class LearningTool:
                 }
             else:
                 return templates
-                
+
         except Exception as e:
             logger.error(f"Failed to export prompt templates: {e}")
             return {
@@ -657,12 +656,12 @@ class LearningTool:
                 "message": f"Failed to export prompt templates: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     async def import_prompt_templates(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """プロンプトテンプレートをインポート"""
         try:
             imported_count = 0
-            
+
             if "prompt_templates" in data:
                 for template in data["prompt_templates"]:
                     try:
@@ -676,7 +675,7 @@ class LearningTool:
                         imported_count += 1
                     except Exception as e:
                         logger.warning(f"Failed to import prompt template: {e}")
-            
+
             return {
                 "status": "success",
                 "message": f"Successfully imported {imported_count} prompt templates",

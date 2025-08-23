@@ -53,7 +53,7 @@ class LearningLoop:
     def _update_prompt_file(self, new_prompt: str):
         """プロンプトファイルを新しい内容で更新する"""
         prompt_file = self.config.paths.custom_prompt_file
-        
+
         # バックアップを作成
         backup_file = f"{prompt_file}.{datetime.now().strftime('%Y%m%d%H%M%S')}.bak"
         try:

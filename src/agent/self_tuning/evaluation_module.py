@@ -31,22 +31,22 @@ class EvaluationModule:
             float: 評価スコア (0.0から1.0)
         """
         logger.info("パフォーマンス評価を開始します...")
-        
+
         # TODO: ログ分析ロジックを実装
         # - ログファイル (self.config.paths.log_file) を読み込む
         # - 成功/失敗のパターンを特定する
         # - スコアを計算する
-        
+
         # 固定スコアを返すモック実装
         mock_score = 0.6
-        
+
         logger.info(f"現在の評価スコア: {mock_score}")
-        
+
         if mock_score < self.config.learning.min_quality_score_for_learning:
             logger.warning(f"評価スコアがしきい値 ({self.config.learning.min_quality_score_for_learning}) を下回りました。最適化が必要です。")
         else:
             logger.info("評価スコアはしきい値を満たしています。")
-            
+
         return mock_score
 
 
