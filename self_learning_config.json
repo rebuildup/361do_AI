@@ -1,0 +1,107 @@
+{
+  "self_learning_tests": {
+    "intent_analysis_test": {
+      "description": "自己学習関連の意図分析テスト",
+      "test_cases": [
+        {
+          "input": "学習データの統計を表示",
+          "expected_intent": "learning_data_access",
+          "expected_tools": ["learning"]
+        },
+        {
+          "input": "一番古い学習データを教えて",
+          "expected_intent": "learning_data_access",
+          "expected_tools": ["learning"]
+        },
+        {
+          "input": "read file src/data/prompts/system_prompt.txt",
+          "expected_intent": "file_operation",
+          "expected_tools": ["file"]
+        },
+        {
+          "input": "write file test_output.txt\\nテスト内容",
+          "expected_intent": "file_operation",
+          "expected_tools": ["file"]
+        },
+        {
+          "input": "update prompt test_prompt: 新しいプロンプト内容",
+          "expected_intent": "file_operation",
+          "expected_tools": ["file"]
+        },
+        {
+          "input": "add learning data: 新しい学習データ",
+          "expected_intent": "file_operation",
+          "expected_tools": ["file"]
+        }
+      ]
+    },
+    "learning_data_access_test": {
+      "description": "学習データアクセス機能テスト",
+      "questions": [
+        "学習データの統計を表示してください",
+        "一番古い学習データを教えて",
+        "学習システムの状態を確認",
+        "学習データを一覧表示",
+        "学習データの品質スコアを確認",
+        "高品質な学習データを表示",
+        "最近追加された学習データを表示"
+      ]
+    },
+    "self_edit_test": {
+      "description": "自己編集機能テスト",
+      "questions": [
+        "read file src/data/prompts/system_prompt.txt",
+        "write file test_self_edit.txt\\nこれは自己編集テスト用のファイルです。\\n作成日時: $(date)",
+        "append file test_self_edit.txt\\n追記: 自己編集機能のテストを実行中",
+        "update prompt test_self_edit_prompt: これは自己編集テスト用のプロンプトです",
+        "add learning data: 自己編集テストで追加された学習データ - カテゴリ: test",
+        "optimize prompt system_prompt",
+        "read file test_self_edit.txt"
+      ]
+    },
+    "database_integration_test": {
+      "description": "データベース統合テスト",
+      "direct_operations": [
+        "get_learning_statistics",
+        "get_prompt_template",
+        "get_active_knowledge",
+        "insert_learning_data",
+        "update_knowledge_item"
+      ]
+    },
+    "learning_system_integration_test": {
+      "description": "学習システム統合テスト",
+      "operations": [
+        "get_learning_data",
+        "get_learning_status",
+        "add_custom_learning_data",
+        "start_learning_system",
+        "stop_learning_system"
+      ]
+    }
+  },
+  "test_settings": {
+    "timeout_seconds": 30,
+    "retry_count": 2,
+    "detailed_logging": true,
+    "save_intermediate_results": true,
+    "test_data_cleanup": true
+  },
+  "expected_behaviors": {
+    "learning_data_access": {
+      "should_use_tools": ["learning"],
+      "should_return_data": true,
+      "should_format_response": true
+    },
+    "self_edit": {
+      "should_use_tools": ["file"],
+      "should_modify_files": true,
+      "should_confirm_changes": true
+    },
+    "database_operations": {
+      "should_access_database": true,
+      "should_return_statistics": true,
+      "should_handle_errors": true
+    }
+  }
+}

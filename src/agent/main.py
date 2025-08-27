@@ -200,6 +200,40 @@ async def get_learning_report():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post('/api/learning/run_once')
+async def run_learning_once():
+    """学習エンジンを一回だけ実行する（同期）。テストや管理用。"""
+    try:
+        if app_instance.learning_engine is None:
+            raise HTTPException(status_code=503, detail="Learning engine is not initialized")
+
+        result = await app_instance.learning_engine.run_once()
+        return JSONResponse(content=result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Run-once learning failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get('/api/learning/status')
+async def learning_status():
+    """学習エンジンの状態取得"""
+    try:
+        if app_instance.learning_engine is None:
+            raise HTTPException(status_code=503, detail="Learning engine is not initialized")
+
+        status = await app_instance.learning_engine.get_status()
+        return JSONResponse(content=status)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get learning status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/web-design/generate")
 async def generate_web_design(request: dict):
     """Webデザイン生成エンドポイント（削除）"""
@@ -282,9 +316,9 @@ if __name__ == "__main__":
         # 通常のサーバー起動
         logger.info("Starting AI Agent Studio...")
         uvicorn.run(
-            "main:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=False,
-            log_level="info"
+                app,
+                host="0.0.0.0",
+                port=8000,
+                reload=False,
+                log_level="info"
         )

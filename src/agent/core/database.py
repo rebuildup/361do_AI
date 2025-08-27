@@ -421,12 +421,25 @@ class DatabaseManager:
             if self.connection is None:
                 raise RuntimeError("Database connection is not initialized")
 
-            async with self.async_conn.execute(query, params or ()) as cursor:
-                if query.strip().upper().startswith('SELECT'):
-                    return await cursor.fetchall()
-                else:
-                    await self.async_conn.commit()
-                    return cursor.lastrowid
+            # aiosqlite's execute returns a cursor object; it is not an async context manager.
+            # Use the explicit pattern: cursor = await conn.execute(...)
+            cursor = await self.async_conn.execute(query, params or ())
+
+            if query.strip().upper().startswith('SELECT'):
+                rows = await cursor.fetchall()
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+                return rows
+            else:
+                await self.async_conn.commit()
+                lastrowid = getattr(cursor, 'lastrowid', None)
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+                return lastrowid
         except Exception as e:
             logger.error(f"Query execution failed: {query} - {e}")
             raise

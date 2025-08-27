@@ -17,6 +17,8 @@ from agent.core.agent_manager import AgentManager
 from agent.tools.file_tool import FileTool
 from agent.tools.learning_tool import LearningTool
 
+# Avoid contacting local ollama daemon during tests
+os.environ.setdefault('AGENT_SKIP_OLLAMA', '1')
 
 @pytest.mark.asyncio
 async def test_agent_self_edit_write_and_read():

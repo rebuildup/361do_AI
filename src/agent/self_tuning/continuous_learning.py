@@ -44,6 +44,33 @@ class ContinuousLearningEngine:
 
         logger.info("Continuous learning cycle started")
 
+    async def run_once(self) -> Dict[str, Any]:
+        """
+        学習サイクルを1回だけ実行する（同期実行）。
+        これはテストや手動トリガー向けで、バックグラウンドタスクを起動しません。
+        """
+        try:
+            logger.info("Running continuous learning cycle once...")
+            await self._evaluate_recent_conversations()
+            logger.info("One-off continuous learning cycle completed")
+            return {"status": "success", "message": "One-off learning cycle completed"}
+        except Exception as e:
+            logger.error(f"One-off learning cycle failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def get_status(self) -> Dict[str, Any]:
+        """
+        学習エンジンのステータスを返す。
+        """
+        try:
+            return {
+                'is_running': self.is_running,
+                'active_tasks': [name for name, t in self.learning_tasks.items() if not t.done()],
+            }
+        except Exception as e:
+            logger.error(f"Failed to get learning engine status: {e}")
+            return {'error': str(e)}
+
     async def stop(self):
         """学習エンジン停止"""
         logger.info("Stopping continuous learning engine...")

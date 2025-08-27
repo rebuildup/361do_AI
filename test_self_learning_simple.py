@@ -9,6 +9,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+import os
 
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -18,6 +19,9 @@ from agent.core.database import DatabaseManager
 from agent.core.ollama_client import OllamaClient
 from agent.tools.learning_tool import LearningTool
 from agent.core.agent_manager import AgentManager
+
+# Tests should not contact a local ollama daemon; force skip mode
+os.environ.setdefault('AGENT_SKIP_OLLAMA', '1')
 
 
 async def _test_learning_system_async():

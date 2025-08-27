@@ -148,3 +148,65 @@
 2025-08-23 00:22:07 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:89 - No unevaluated conversations found
 2025-08-23 00:52:07 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:89 - No unevaluated conversations found
 2025-08-23 01:22:07 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:89 - No unevaluated conversations found
+2025-08-23 10:49:54 | INFO     | __main__:run_manual_learning:239 - 手動学習サイクルを開始します...
+2025-08-23 10:49:54 | INFO     | agent.core.database:initialize:158 - Initializing database: sqlite:///data/agent.db
+2025-08-23 10:49:54 | INFO     | agent.core.database:initialize:346 - Database initialized successfully
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:initialize:34 - Initializing Agent Manager...
+2025-08-23 10:49:54 | INFO     | agent.core.ollama_client:initialize:40 - Initializing OLLAMA client: http://localhost:11434
+2025-08-23 10:49:54 | INFO     | agent.core.ollama_client:initialize:43 - AGENT_SKIP_OLLAMA is set: skipping OLLAMA network initialization and using fake session
+2025-08-23 10:49:54 | INFO     | agent.tools.file_tool:__init__:19 - FileTool initialized. Project root set to: D:\work\008_LLM
+2025-08-23 10:49:54 | INFO     | agent.tools.file_tool:initialize:100 - FileTool initialized (async).
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:_initialize_tools:77 - Initialized 1 tools
+2025-08-23 10:49:54 | INFO     | agent.self_tuning.advanced_learning:start_advanced_learning:82 - Starting advanced self-learning system...
+2025-08-23 10:49:54 | INFO     | agent.self_tuning.advanced_learning:start_advanced_learning:99 - Advanced self-learning system started
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:initialize:54 - LearningTool started successfully
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:initialize:58 - Agent Manager initialized successfully
+2025-08-23 10:49:54 | INFO     | __main__:run_manual_learning:260 - 手動学習のための初期化が完了しました。
+2025-08-23 10:49:54 | INFO     | __main__:run_manual_learning:266 - シャットダウン処理を開始します。
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:shutdown:81 - Shutting down Agent Manager...
+2025-08-23 10:49:54 | INFO     | agent.tools.file_tool:close:104 - FileTool closed.
+2025-08-23 10:49:54 | INFO     | agent.self_tuning.advanced_learning:stop:103 - Stopping advanced learning system...
+2025-08-23 10:49:54 | INFO     | agent.self_tuning.advanced_learning:stop:112 - Learning task data_analysis cancelled
+2025-08-23 10:49:54 | INFO     | agent.self_tuning.advanced_learning:stop:114 - Advanced learning system stopped
+2025-08-23 10:49:54 | INFO     | agent.core.agent_manager:shutdown:94 - Agent Manager shutdown complete
+2025-08-23 10:49:54 | INFO     | __main__:run_manual_learning:272 - 手動学習サイクルが完了しました。
+2025-08-23 01:52:07 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:89 - No unevaluated conversations found
+2025-08-23 02:22:07 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:89 - No unevaluated conversations found
+2025-08-23 02:42:11 | INFO     | __main__:<module>:317 - Starting AI Agent Studio...
+2025-08-23 02:42:11 | INFO     | __main__:initialize:39 - Initializing AI Agent Studio...
+2025-08-23 02:42:11 | INFO     | agent.core.database:initialize:158 - Initializing database: sqlite:///data/agent.db
+2025-08-23 02:42:11 | WARNING  | agent.core.database:initialize:177 - Database schema mismatch detected, backing up 'data/agent.db' to 'data/agent.db.backup.20250823_024211' and recreating database
+2025-08-23 02:42:12 | INFO     | agent.core.database:initialize:346 - Database initialized successfully
+2025-08-23 02:42:12 | INFO     | __main__:initialize:44 - Database initialized
+2025-08-23 02:42:12 | INFO     | agent.core.agent_manager:initialize:34 - Initializing Agent Manager...
+2025-08-23 02:42:12 | INFO     | agent.core.ollama_client:initialize:40 - Initializing OLLAMA client: http://ollama:11434
+2025-08-23 02:42:12 | INFO     | agent.core.ollama_client:initialize:112 - OLLAMA client initialized successfully
+2025-08-23 02:42:12 | INFO     | agent.tools.file_tool:__init__:39 - FileTool initialized. Project root: /app
+2025-08-23 02:42:12 | DEBUG    | agent.tools.file_tool:__init__:40 - Allowed paths: ['/app/src/data/prompts', '/app/src/data/learning_data']
+2025-08-23 02:42:12 | INFO     | agent.tools.file_tool:initialize:123 - FileTool async initialized
+2025-08-23 02:42:12 | INFO     | agent.core.agent_manager:_initialize_tools:87 - Initialized 1 tools
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:start_advanced_learning:82 - Starting advanced self-learning system...
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:start_advanced_learning:99 - Advanced self-learning system started
+2025-08-23 02:42:12 | INFO     | agent.core.agent_manager:initialize:54 - LearningTool started successfully
+2025-08-23 02:42:12 | INFO     | agent.core.agent_manager:initialize:58 - Agent Manager initialized successfully
+2025-08-23 02:42:12 | INFO     | __main__:initialize:52 - Agent Manager initialized
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.continuous_learning:start_learning_cycle:37 - Starting continuous learning cycle...
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.continuous_learning:start_learning_cycle:45 - Continuous learning cycle started
+2025-08-23 02:42:12 | INFO     | __main__:initialize:61 - Continuous Learning Engine started
+2025-08-23 02:42:12 | INFO     | __main__:initialize:63 - AI Agent Studio initialized successfully!
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:_optimize_prompts:346 - Prompt optimization completed
+2025-08-23 02:42:12 | DEBUG    | agent.self_tuning.continuous_learning:_evaluate_recent_conversations:116 - No unevaluated conversations found
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:_cleanup_unused_learning_data:321 - Cleaned up 0 unused learning data items
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:_analyze_and_improve_learning_data:178 - Learning data analysis completed
+2025-08-23 02:42:12 | INFO     | agent.self_tuning.advanced_learning:_consolidate_knowledge_base:530 - Knowledge base consolidation completed
+2025-08-23 02:42:19 | INFO     | __main__:shutdown:67 - Shutting down AI Agent Studio...
+2025-08-23 02:42:19 | INFO     | agent.self_tuning.continuous_learning:stop:76 - Stopping continuous learning engine...
+2025-08-23 02:42:19 | INFO     | agent.self_tuning.continuous_learning:stop:88 - Continuous learning engine stopped
+2025-08-23 02:42:19 | INFO     | agent.core.agent_manager:shutdown:91 - Shutting down Agent Manager...
+2025-08-23 02:42:19 | INFO     | agent.tools.file_tool:close:126 - FileTool closed
+2025-08-23 02:42:19 | INFO     | agent.self_tuning.advanced_learning:stop:103 - Stopping advanced learning system...
+2025-08-23 02:42:19 | ERROR    | agent.core.ollama_client:generate:212 - OLLAMA generation failed: Server disconnected
+2025-08-23 02:42:19 | ERROR    | agent.self_tuning.advanced_learning:_analyze_performance_trends:614 - Failed to analyze performance trends: Server disconnected
+2025-08-23 02:42:19 | INFO     | agent.self_tuning.advanced_learning:stop:114 - Advanced learning system stopped
+2025-08-23 02:42:19 | INFO     | agent.core.agent_manager:shutdown:104 - Agent Manager shutdown complete
+2025-08-23 02:42:19 | INFO     | __main__:shutdown:78 - AI Agent Studio shutdown complete

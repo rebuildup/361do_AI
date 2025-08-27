@@ -1,8 +1,40 @@
-# 自己学習型 AI エージェント
+# AI エージェントシステム
 
-高度な自己学習機能を持つ AI エージェントシステムです。エージェント自身が学習データやプロンプトを操作し、継続的に改善を行うことができます。
+高度な自己学習機能を持つ AI エージェントシステムです。OLLAMA バックエンドを使用した安定したエージェント機能と、継続的に改善される学習システムを提供します。
 
-## 🚀 主な機能
+## 🎯 主要機能
+
+### Codex 互換エージェント（推奨）
+
+OLLAMA バックエンドで実装されたシンプルで安定したエージェント機能です。
+
+**特徴:**
+
+- 高速なコード補完とチャット機能
+- OLLAMA との完全統合
+- 最小限の設定で即座に利用可能
+- 堅牢なエラーハンドリング
+
+### 自己学習システム
+
+エージェント自身が学習データやプロンプトを操作し、継続的に改善を行う高度なシステムです。
+
+**特徴:**
+
+- 会話データからの自動学習
+- プロンプトの自動最適化
+- 知識ベースの構築と管理
+- パフォーマンス分析と改善
+
+## 🚀 詳細機能
+
+### エージェント機能
+
+- **コード補完**: プロンプトベースの高速コード生成
+- **チャット機能**: 会話形式での自然な対話
+- **ストリーミング**: リアルタイムでの応答生成
+- **セッション管理**: 会話コンテキストの自動管理
+- **エラーハンドリング**: 堅牢なエラー処理とフォールバック
 
 ### 学習システム
 
@@ -11,19 +43,12 @@
 - **プロンプト最適化**: LLM を使用してプロンプトを自動最適化
 - **パフォーマンス分析**: システムの性能を継続的に監視・改善
 
-### プロンプト管理
+### データ管理
 
-- **カスタムプロンプト**: ユーザーが独自のプロンプトを追加・編集
-- **プロンプト最適化**: 既存のプロンプトを自動的に改善
-- **バージョン管理**: プロンプトの変更履歴を追跡
-- **エクスポート/インポート**: プロンプトのバックアップ・復元
-
-### 学習データ管理
-
-- **データ追加**: カテゴリ別に学習データを追加
-- **品質管理**: 学習データの品質スコアを管理
-- **自動改善**: 低品質なデータを自動的に改善
-- **エクスポート/インポート**: 学習データのバックアップ・復元
+- **学習データ管理**: カテゴリ別の学習データ追加・編集・削除
+- **品質管理**: 学習データの品質スコア管理
+- **エクスポート/インポート**: データのバックアップ・復元
+- **統計情報**: 学習進捗と効果の可視化
 
 ## 📦 インストール
 
@@ -50,8 +75,21 @@ pip install -r requirements.txt
 # https://ollama.ai/ からインストール
 ollama serve
 
-# モデルをダウンロード
-ollama pull llama2
+# 推奨モデルをダウンロード
+ollama pull qwen2:7b-instruct
+```
+
+### クイックスタート
+
+```bash
+# エージェントを起動
+python agent_cli.py
+
+# 基本的な使用方法
+> chat こんにちは
+> chat "Pythonでファイルを読み込む方法を教えて"
+> status
+> quit
 ```
 
 ## 🎯 使用方法
@@ -64,19 +102,23 @@ python agent_cli.py
 
 ### 基本コマンド
 
-#### チャット
+#### チャット機能
 
 ```bash
-chat こんにちは
+chat こんにちは                    # エージェントとチャット
+chat "コードを書いて"              # コード生成リクエスト
+status                           # システム状態確認
+help                             # ヘルプ表示
+quit                             # 終了
 ```
 
-#### 学習システム管理
+#### 学習システム
 
 ```bash
-learn start          # 学習システム開始
-learn stop           # 学習システム停止
-learn status         # 学習システム状態確認
-learn cycle          # 手動で学習サイクル実行
+learn start                      # 学習システム開始
+learn stop                       # 学習システム停止
+learn status                     # 学習システム状態確認
+learn cycle                      # 手動で学習サイクル実行
 ```
 
 #### 学習データ管理
@@ -120,42 +162,61 @@ report               # 詳細レポート生成
 
 ## 🧪 テスト実行
 
+### テスト実行
+
 ```bash
+# 単体テスト
+python -m pytest tests/ -v
+
+# 統合テスト（OLLAMA サーバーが必要）
+export INTEGRATION_TEST=true
+python -m pytest tests/test_codex_integration.py -v
+
+# 学習システムのテスト
 python test_self_learning_simple.py
 ```
 
-このテストスクリプトは以下の機能をテストします：
+テストでは以下の機能を検証します：
 
-- 学習データの追加・取得
-- プロンプトテンプレートの管理
-- 学習システムの開始・停止
-- エージェントとの会話
-- データのエクスポート・インポート
+- エージェントの基本機能
+- 学習データの管理
 - プロンプト最適化
+- データベース操作
+- OLLAMA との統合
 
 ## 📁 プロジェクト構造
 
 ```
-008_LLM/
+AI-Agent-System/
 ├── agent_cli.py                 # CLIエージェント
-├── test_self_learning_simple.py # テストスクリプト
+├── test_self_learning_simple.py # 学習システムテスト
+├── requirements.txt             # 依存関係
+├── pytest.ini                  # pytest設定
 ├── src/
-│   └── agent/
-│       ├── core/
-│       │   ├── config.py        # 設定管理
-│       │   ├── database.py      # データベース管理
-│       │   ├── ollama_client.py # Ollamaクライアント
-│       │   └── agent_manager.py # エージェント管理
-│       ├── tools/
-│       │   ├── learning_tool.py # 学習ツール
-│       │   ├── search_tool.py   # 検索ツール
-│       │   └── file_tool.py     # ファイルツール
-│       └── self_tuning/
-│           └── advanced_learning.py # 高度な学習システム
-└── data/
-    ├── learning_data/           # 学習データ
-    ├── prompts/                 # プロンプトファイル
-    └── logs/                    # ログファイル
+│   ├── agent/                   # 学習システム
+│   │   ├── core/
+│   │   │   ├── config.py        # 設定管理
+│   │   │   ├── database.py      # データベース管理
+│   │   │   ├── ollama_client.py # Ollamaクライアント
+│   │   │   └── agent_manager.py # エージェント管理
+│   │   ├── tools/
+│   │   │   ├── learning_tool.py # 学習ツール
+│   │   │   └── file_tool.py     # ファイルツール
+│   │   └── self_tuning/
+│   │       └── advanced_learning.py # 高度な学習システム
+│   └── codex_agent/             # Codex互換エージェント
+│       ├── config.py            # 設定
+│       ├── agent_interface.py   # エージェントインターフェース
+│       ├── compatibility_layer.py # 互換性レイヤー
+│       ├── ollama_client.py     # OLLAMAクライアント
+│       ├── performance_monitor.py # パフォーマンス監視
+│       └── errors.py            # エラーハンドリング
+├── tests/                       # テストファイル
+├── data/                        # データファイル
+│   ├── learning_data/           # 学習データ
+│   ├── prompts/                 # プロンプトファイル
+│   └── logs/                    # ログファイル
+└── tools/                       # ユーティリティ
 ```
 
 ## 🔧 設定
@@ -172,9 +233,23 @@ python test_self_learning_simple.py
 ### 環境変数
 
 ```bash
-export OLLAMA_HOST=http://localhost:11434
-export OLLAMA_MODEL=llama2
+# OLLAMA設定
+export OLLAMA_BASE_URL=http://localhost:11434
+export OLLAMA_MODEL=qwen2:7b-instruct
+export OLLAMA_TIMEOUT=30
+
+# GPU設定（高速化）
+export OLLAMA_GPU_ENABLED=true
+export OLLAMA_GPU_MEMORY_FRACTION=0.8
+export OLLAMA_GPU_LAYERS=32
+export OLLAMA_PARALLEL_REQUESTS=4
+
+# データベース設定
 export DATABASE_URL=sqlite:///data/agent.db
+
+# 学習システム設定
+export AGENT_LEARNING_ENABLED=true
+export AGENT_LEARNING_INTERVAL_MINUTES=30
 ```
 
 ## 📊 学習システムの仕組み
@@ -244,19 +319,47 @@ if result.get('status') == 'success':
    ```bash
    # Ollamaが起動しているか確認
    curl http://localhost:11434/api/tags
+
+   # モデルが利用可能か確認
+   ollama list
    ```
 
-2. **データベースエラー**
+2. **Codex 互換モードが有効にならない**
+
+   ```bash
+   # 環境変数を確認
+   echo $AGENT_USE_CODEX_AGENT
+
+   # Windows
+   echo %AGENT_USE_CODEX_AGENT%
+
+   # 正しく設定
+   export AGENT_USE_CODEX_AGENT=true  # Linux/Mac
+   set AGENT_USE_CODEX_AGENT=true     # Windows
+   ```
+
+3. **データベースエラー（従来モード）**
 
    ```bash
    # データベースファイルの権限を確認
    ls -la data/agent.db
    ```
 
-3. **学習システムが起動しない**
+4. **学習システムが起動しない（従来モード）**
+
    ```bash
    # 設定を確認
    python -c "from src.agent.core.config import Config; print(Config().is_learning_enabled)"
+   ```
+
+5. **テストが失敗する**
+
+   ```bash
+   # 統合テストの場合、OLLAMAサーバーが必要
+   ollama serve
+
+   # 環境変数を設定
+   export INTEGRATION_TEST=true
    ```
 
 ### ログの確認
@@ -284,6 +387,98 @@ tail -f data/logs/agent.log
 - [SQLAlchemy](https://www.sqlalchemy.org/) - ORM フレームワーク
 - [Loguru](https://loguru.readthedocs.io/) - ログ管理
 
+## ⚡ パフォーマンス特性
+
+| 項目         | CPU モード | GPU モード |
+| ------------ | ---------- | ---------- |
+| 起動時間     | ~5 秒      | ~3 秒      |
+| 応答時間     | 5-15 秒    | 2-8 秒     |
+| メモリ使用量 | 中程度     | 高         |
+| 学習機能     | 完全対応   | 完全対応   |
+| 安定性       | 高         | 高         |
+| 並列処理     | 制限あり   | 高速       |
+
+## 🚀 GPU 高速化設定
+
+### GPU 要件
+
+- NVIDIA GPU（CUDA 対応）
+- 最低 4GB VRAM（推奨 8GB 以上）
+- CUDA 11.8 以上
+
+### GPU 設定の有効化
+
+```bash
+# GPU設定を有効化
+export OLLAMA_GPU_ENABLED=true
+export OLLAMA_GPU_MEMORY_FRACTION=0.8  # GPUメモリの80%を使用
+export OLLAMA_GPU_LAYERS=32             # GPU層数（モデルに応じて調整）
+export OLLAMA_PARALLEL_REQUESTS=4      # 並列リクエスト数
+
+# エージェントを起動
+python agent_cli.py
+```
+
+### GPU 設定の最適化
+
+#### RTX 4050 (6GB VRAM) の場合
+
+```bash
+export OLLAMA_GPU_MEMORY_FRACTION=0.7
+export OLLAMA_GPU_LAYERS=28
+export OLLAMA_PARALLEL_REQUESTS=2
+```
+
+#### RTX 4060/4070 (8GB+ VRAM) の場合
+
+```bash
+export OLLAMA_GPU_MEMORY_FRACTION=0.8
+export OLLAMA_GPU_LAYERS=32
+export OLLAMA_PARALLEL_REQUESTS=4
+```
+
+#### RTX 4080/4090 (12GB+ VRAM) の場合
+
+```bash
+export OLLAMA_GPU_MEMORY_FRACTION=0.9
+export OLLAMA_GPU_LAYERS=40
+export OLLAMA_PARALLEL_REQUESTS=6
+```
+
+## 📋 設定例
+
+### 本番環境向け設定（GPU 対応）
+
+```bash
+# .env ファイル
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2:7b-instruct
+OLLAMA_TIMEOUT=30
+OLLAMA_GPU_ENABLED=true
+OLLAMA_GPU_MEMORY_FRACTION=0.8
+OLLAMA_GPU_LAYERS=32
+OLLAMA_PARALLEL_REQUESTS=4
+DATABASE_URL=sqlite:///data/agent.db
+AGENT_LEARNING_ENABLED=true
+```
+
+### 開発環境向け設定（GPU 対応）
+
+```bash
+# .env ファイル
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2:7b-instruct
+OLLAMA_GPU_ENABLED=true
+OLLAMA_GPU_MEMORY_FRACTION=0.6
+OLLAMA_GPU_LAYERS=24
+OLLAMA_PARALLEL_REQUESTS=2
+DATABASE_URL=sqlite:///data/agent.db
+AGENT_LEARNING_ENABLED=true
+AGENT_LEARNING_INTERVAL_MINUTES=15
+```
+
 ---
 
-**注意**: このシステムは学習目的で作成されています。本格的な運用前に十分なテストを行ってください。
+**注意**: このシステムは学習・研究目的で作成されています。本格的な運用前に十分なテストを行ってください。
+
+**推奨**: まずは基本的なチャット機能から始めて、必要に応じて学習システムを有効化することをお勧めします。

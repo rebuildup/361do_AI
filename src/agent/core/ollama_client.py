@@ -5,6 +5,7 @@ OLLAMAとの通信を管理するクライアント
 
 import asyncio
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 import aiohttp
@@ -18,9 +19,14 @@ class OllamaClient:
         self.base_url = config['base_url']
         self.model = config['model']
         # 非同期 HTTP セッションは初期化時に作成される
-        self.session: Optional[aiohttp.ClientSession] = None
+        from typing import Any as _Any
+        self.session: _Any = None
         # デフォルトタイムアウト (秒)
         self.timeout = aiohttp.ClientTimeout(total=300)  # 5分タイムアウト
+
+        # テストやCIで ollama を使わない場合に外部接続をスキップするためのフラグ
+        # 環境変数 AGENT_SKIP_OLLAMA を '1' に設定すると、initialize() は実際の接続を行いません。
+        self._skip_ollama = bool(os.getenv('AGENT_SKIP_OLLAMA'))
 
     @property
     def session_active(self) -> aiohttp.ClientSession:
@@ -32,7 +38,85 @@ class OllamaClient:
     async def initialize(self):
         """クライアント初期化"""
         logger.info(f"Initializing OLLAMA client: {self.base_url}")
+        # テストモードでのスキップ
+        if self._skip_ollama:
+            logger.info("AGENT_SKIP_OLLAMA is set: skipping OLLAMA network initialization and using fake session")
 
+            model_name = self.model
+
+            class FakeResponse:
+                def __init__(self, status: int = 200, json_data: Optional[Dict] = None, text_data: str = ""):
+                    self.status = status
+                    self._json = json_data or {}
+                    self._text = text_data
+
+                    async def _empty_gen():
+                        if False:  # pragma: no cover
+                            yield b""
+
+                    self.content = _empty_gen()
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    return False
+
+                async def json(self):
+                    return self._json
+
+                async def text(self):
+                    return self._text
+
+            class FakeSession:
+                def __init__(self):
+                    pass
+
+                def get(self, url: str):
+                    # /api/tags 用
+                    if url.endswith('/api/tags'):
+                        return FakeResponse(status=200, json_data={'models': []})
+                    return FakeResponse(status=200, json_data={})
+
+                def post(self, url: str, json: Optional[Dict] = None):
+                    # /api/generate 用
+                    if url.endswith('/api/generate'):
+                        # Return a plausible JSON-string response that the intent analyzer expects.
+                        # The real OLLAMA generate endpoint returns a JSON object where
+                        # 'response' is the generated text (often a JSON string for structured prompts).
+                        fake_intent = {
+                            "primary_intent": "general_chat",
+                            "confidence": 0.9,
+                            "entities": [],
+                            "requires_tools": [],
+                            "complexity": "simple"
+                        }
+                        # Avoid using the local parameter name 'json' which shadows the module.
+                        json_mod = globals().get('json')
+                        resp_text = json_mod.dumps(fake_intent) if json_mod is not None else '{"primary_intent": "general_chat", "confidence": 0.9}'
+                        return FakeResponse(status=200, json_data={
+                            # store the JSON as a string to mimic the real LLM output
+                            'response': resp_text
+                        })
+                    if url.endswith('/api/chat'):
+                        return FakeResponse(status=200, json_data={'message': {'content': 'FAKE_CHAT_RESPONSE'}})
+                    if url.endswith('/api/embeddings'):
+                        return FakeResponse(status=200, json_data={'embedding': []})
+                    if url.endswith('/api/show'):
+                        return FakeResponse(status=200, json_data={'name': model_name})
+                    if url.endswith('/api/pull'):
+                        return FakeResponse(status=200, json_data={'status': 'success'})
+                    return FakeResponse(status=200, json_data={})
+
+                async def close(self):
+                    # Fake close for compatibility with real ClientSession
+                    return
+
+            # fake session を設定して実際の HTTP 接続を行わない
+            self.session = FakeSession()
+            return
+
+        # 通常モード
         self.session = aiohttp.ClientSession(timeout=self.timeout)
 
         # 接続確認
@@ -46,7 +130,17 @@ class OllamaClient:
     async def close(self):
         """クライアント終了"""
         if self.session:
-            await self.session.close()
+            close_attr = getattr(self.session, 'close', None)
+            if close_attr:
+                # close_attr may be a coroutine function or regular function
+                try:
+                    if asyncio.iscoroutinefunction(close_attr):
+                        await close_attr()
+                    else:
+                        # call sync close
+                        close_attr()
+                except Exception as e:
+                    logger.debug(f"Error while closing session: {e}")
 
     async def health_check(self) -> Dict[str, Any]:
         """ヘルスチェック"""

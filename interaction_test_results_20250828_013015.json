@@ -1,0 +1,88 @@
+[
+  {
+    "test_case": "学習データ統計の取得",
+    "message": "学習データの統計を表示してください",
+    "response": "あなたの要求に応えるためには、具体的なシステム環境についてもう少し詳しく知らなければなりません。多くのプログラミングツールやエンジンが存在します（例えば、PythonのpandasやNumPyなど）。これらはデータフレームを作成し、統計情報を見やすく表示するのに役立ちます。\n\nしかし、一般的な操作として、あなたが使用しているシステム（Windows、macOS、Linux、または他の何か）で標準的な統計情報を得るためには以下のステップを試してみてください：\n\n1. システムのCPU使用率: `top` コマンドが Linux/Mac を表示します。Windowsの場合、タスクマネージャーからアクセスできます。\n2. メモリ使用量: Linuxの場合、`free -m` コマンドで確認できます。Windowsでは、同じくタスクマネージャーからアクセスできます。\n3. 硬diskの使用状態: Windowsの場合、コントロールパネルやファイルエクスプローラ内で確認できます。Linux/Macの場合、システム情報からアクセスできます。\n\nこれらの情報を提供していただければ、より具体的な統計表示方法を提案することができます。しかし、もしPythonのpandasなどを使うことを選択する場合、必要なデータフレームを作成し、統計値（平均、標準偏差、最大値、最小値など）を求めることができます。それを行うには、まず「学習データ」というファイルがシステムに存在している必要があります。\n\nあなたの具体的な要求や状況をもっと詳しく教えていただけますか？",
+    "tools_used": [],
+    "expected_tools": [
+      "learning"
+    ],
+    "tools_match": false,
+    "intent": "technical_help",
+    "response_time": 105.74926924705505,
+    "success": false
+  },
+  {
+    "test_case": "ファイル書き込みテスト",
+    "message": "write file src/data/prompts/interaction_test.txt\n対話テスト用ファイル\n作成日時: 2025-08-28T01:23:11.710379",
+    "response": "提案が作成されました: proposal_1756279552_59400e.json",
+    "tools_used": [
+      "file"
+    ],
+    "expected_tools": [
+      "file"
+    ],
+    "tools_match": true,
+    "intent": "file_operation",
+    "response_time": 54.35943102836609,
+    "success": true
+  },
+  {
+    "test_case": "ファイル読み取りテスト",
+    "message": "read file src/data/prompts/interaction_test.txt",
+    "response": "ファイル読み取りエラー: ファイルが見つかりません: src/data/prompts/interaction_test.txt",
+    "tools_used": [
+      "file"
+    ],
+    "expected_tools": [
+      "file"
+    ],
+    "tools_match": true,
+    "intent": "file_operation",
+    "response_time": 51.125060081481934,
+    "success": true
+  },
+  {
+    "test_case": "プロンプト更新テスト",
+    "message": "update prompt interaction_test_prompt: これは対話テスト用のプロンプトです",
+    "response": "了解しました。この状況では、ユーザーが具体的に何を求めているかは分かりません。以下のように質問して、その情報が必要な情報を提供することができます：\n\n「あなたは何について情報を求めておられるでしょうか？」\nあるいは、「どのような動作を試すことを考えていますか？」と尋ねることができます。\n\nこれにより、私が適切なツールを使用し、ユーザーの要求に最善の方法で対応することが可能となります。",
+    "tools_used": [],
+    "expected_tools": [
+      "file"
+    ],
+    "tools_match": false,
+    "intent": "self_edit",
+    "response_time": 106.76879644393921,
+    "success": false
+  },
+  {
+    "test_case": "学習データ追加テスト",
+    "message": "add learning data: 対話テストで追加された学習データ - カテゴリ: interaction_test",
+    "response": "実行するコマンドが明確ではありません。\n\n例:\n- 'run systeminfo'\n- 'システム情報を表示'\n- 'tasklistコマンドを実行'\n\n利用可能なコマンド: systeminfo, dir, ls, pwd, whoami, hostname, ipconfig, ifconfig",
+    "tools_used": [
+      "command"
+    ],
+    "expected_tools": [
+      "file"
+    ],
+    "tools_match": false,
+    "intent": "command_execution",
+    "response_time": 44.77413296699524,
+    "success": false
+  },
+  {
+    "test_case": "学習データ一覧取得",
+    "message": "最近追加された学習データを5件表示してください",
+    "response": "サポートされていない自己編集コマンドです。",
+    "tools_used": [
+      "file"
+    ],
+    "expected_tools": [
+      "learning"
+    ],
+    "tools_match": false,
+    "intent": "file_operation",
+    "response_time": 54.893537759780884,
+    "success": false
+  }
+]

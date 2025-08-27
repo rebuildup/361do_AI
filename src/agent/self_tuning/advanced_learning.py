@@ -60,18 +60,10 @@ class AdvancedLearningSystem:
         self.db = db_manager
         self.config = config
         self.ollama_client = ollama_client
-        self.learning_data_path = Path("src/data/learning_data")
-        self.prompts_path = Path("src/data/prompts")
+        self.learning_data_path = Path(self.config.paths.learning_data_dir)
+        self.prompts_path = Path(self.config.paths.prompts_dir)
         self.is_running = False
         self.learning_tasks: Dict[str, asyncio.Task] = {}
-
-        # ディレクトリが存在しない場合は作成
-        try:
-            self.learning_data_path.mkdir(parents=True, exist_ok=True)
-            self.prompts_path.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            # テスト環境などでディレクトリ作成が失敗しても例外を上げない
-            logger.debug("Could not create learning data or prompts directories")
 
     async def start_advanced_learning(self):
         """高度な学習システム開始"""

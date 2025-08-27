@@ -2,7 +2,7 @@
 
 ## 概要
 
-このガイドでは、実装された高度な自己学習システムの使用方法について説明します。エージェント自身が学習データやカスタムプロンプトを書き換える機能を活用して、継続的に改善される AI エージェントを運用できます。
+このガイドでは、AI エージェントシステムの自己学習機能について詳しく説明します。エージェントは会話データから自動的に学習し、プロンプトを最適化し、知識ベースを構築することで、継続的に改善されます。
 
 ## 主な機能
 
@@ -123,33 +123,46 @@ result = await agent_get_performance_report(days=30)
 result = await agent_export_learning_data(format="json")
 ```
 
-## WebUI からの操作
+## CLI からの操作
 
 ### 1. 学習システムの制御
 
-- **学習開始**: `agent_start_learning()` 関数を使用
-- **学習停止**: `agent_stop_learning()` 関数を使用
-- **状態確認**: `agent_learning_status()` 関数を使用
+```bash
+# 学習システムを開始
+> learn start
+
+# 学習システムを停止
+> learn stop
+
+# 学習状態を確認
+> learn status
+
+# 手動で学習サイクルを実行
+> learn cycle
+```
 
 ### 2. 学習データの管理
 
-- **データ追加**: `agent_add_learning_data()` 関数を使用
-- **データ取得**: `agent_get_learning_data()` 関数を使用
-- **データ更新**: `agent_update_learning_data()` 関数を使用
-- **データ削除**: `agent_delete_learning_data()` 関数を使用
+```bash
+# 学習データを追加
+> data add <カテゴリ> <内容>
 
-### 3. 知識ベースの管理
+# 学習データを一覧表示
+> data list [カテゴリ]
 
-- **知識追加**: `agent_add_knowledge_item()` 関数を使用
-- **知識取得**: `agent_get_knowledge_base()` 関数を使用
+# 統計情報を表示
+> data stats
+```
 
-### 4. プロンプト最適化
+### 3. システム状態の確認
 
-- **最適化実行**: `agent_optimize_prompt()` 関数を使用
+```bash
+# システム全体の状態確認
+> status
 
-### 5. パフォーマンス監視
-
-- **レポート取得**: `agent_get_performance_report()` 関数を使用
+# 統計情報の表示
+> stats
+```
 
 ## 設定オプション
 
@@ -267,17 +280,17 @@ AGENT_QUALITY_THRESHOLD=0.8
 
 #### 2. プロンプト最適化が実行されない
 
-- **原因**: カスタムプロンプトファイルが見つからない
-- **解決**: `docker/webui/functions/custom_prompts.json` の存在を確認
+- **原因**: プロンプトファイルが見つからない、または権限問題
+- **解決**: `data/prompts/` ディレクトリの存在と権限を確認
 
 #### 3. 学習データが保存されない
 
 - **原因**: データベースの権限問題
-- **解決**: データベースファイルの書き込み権限を確認
+- **解決**: `data/agent.db` ファイルの書き込み権限を確認
 
 #### 4. パフォーマンスが低下
 
-- **原因**: 学習データが多すぎる
+- **原因**: 学習データが多すぎる、または OLLAMA の負荷
 - **解決**: 学習データの品質閾値を上げるか、古いデータを削除
 
 ## 高度な使用方法

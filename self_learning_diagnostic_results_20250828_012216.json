@@ -1,0 +1,138 @@
+{
+  "start_time": "2025-08-28T01:22:16.646785",
+  "end_time": "2025-08-28T01:22:16.733836",
+  "duration_seconds": 0.087051,
+  "diagnostics_executed": 4,
+  "results": {
+    "database_integration": {
+      "test_name": "database_integration",
+      "tests": [
+        {
+          "name": "database_connection",
+          "status": "success",
+          "details": "データベース接続正常"
+        },
+        {
+          "name": "get_learning_statistics",
+          "status": "success",
+          "details": "学習データ: 176件"
+        },
+        {
+          "name": "get_prompt_template",
+          "status": "partial",
+          "details": "システムプロンプト不存在"
+        }
+      ],
+      "issues": [
+        "システムプロンプトが設定されていない"
+      ],
+      "recommendations": [
+        "システムプロンプトを設定してください"
+      ]
+    },
+    "intent_analysis": {
+      "test_name": "intent_analysis",
+      "tests": [
+        {
+          "name": "analyze_intent_method_exists",
+          "status": "success",
+          "details": "メソッドが存在"
+        },
+        {
+          "name": "intent_analysis_1",
+          "status": "success",
+          "details": "期待: learning_data_access, 検出: learning_data_access, 信頼度: 0.8"
+        },
+        {
+          "name": "intent_analysis_2",
+          "status": "success",
+          "details": "期待: file_operation, 検出: file_operation, 信頼度: 0.95"
+        },
+        {
+          "name": "intent_analysis_3",
+          "status": "success",
+          "details": "期待: file_operation, 検出: file_operation, 信頼度: 0.95"
+        },
+        {
+          "name": "intent_analysis_4",
+          "status": "partial",
+          "details": "期待: file_operation, 検出: dynamic_tool_execution, 信頼度: 0.5"
+        }
+      ],
+      "issues": [
+        "意図分析が不正確: update prompt test: content"
+      ],
+      "recommendations": []
+    },
+    "learning_data_access": {
+      "test_name": "learning_data_access",
+      "tests": [
+        {
+          "name": "learning_tool_availability",
+          "status": "success",
+          "details": "学習ツール利用可能"
+        },
+        {
+          "name": "get_learning_data",
+          "status": "success",
+          "details": "5件のデータを取得"
+        },
+        {
+          "name": "get_learning_status",
+          "status": "success",
+          "details": "学習状態正常取得"
+        },
+        {
+          "name": "add_custom_learning_data",
+          "status": "success",
+          "details": "カスタム学習データ正常追加"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    },
+    "self_edit_functionality": {
+      "test_name": "self_edit_functionality",
+      "tests": [
+        {
+          "name": "handle_self_edit_method_exists",
+          "status": "success",
+          "details": "メソッドが存在"
+        },
+        {
+          "name": "file_write_test",
+          "status": "success",
+          "details": "ファイル正常作成: src/data/prompts/diagnostic_test.txt"
+        },
+        {
+          "name": "file_read_test",
+          "status": "success",
+          "details": "ファイル内容正常読み取り"
+        },
+        {
+          "name": "prompt_update_test",
+          "status": "success",
+          "details": "プロンプト正常更新"
+        },
+        {
+          "name": "learning_data_add_test",
+          "status": "success",
+          "details": "学習データ正常追加"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    }
+  },
+  "summary": {
+    "total_issues": 2,
+    "total_recommendations": 1,
+    "issues_found": [
+      "システムプロンプトが設定されていない",
+      "意図分析が不正確: update prompt test: content"
+    ],
+    "recommendations": [
+      "システムプロンプトを設定してください"
+    ]
+  }
+}

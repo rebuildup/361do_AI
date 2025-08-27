@@ -1,67 +1,89 @@
 import os
-from typing import List, Dict, Any
+import json
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from uuid import uuid4
 from loguru import logger
 
-class FileTool:
-    """
-    エージェントがワークスペース内のファイルを操作するためのツール。
-    セキュリティのため、操作はプロジェクトルート内に制限されます。
-    """
 
-    def __init__(self, project_root: str):
-        """
-        FileToolを初期化します。
+class FileTool:
+    """Tool for file operations within the project. Operations are limited to allowed paths for safety."""
+
+    def __init__(self, project_root: str, allowed_dirs: Optional[List[str]] = None, auto_apply: bool = True, proposals_dir: Optional[str] = None):
+        """Initialize FileTool.
 
         Args:
-            project_root (str): 操作を許可するプロジェクトのルートディレクトリ。
+            project_root: repository/project root to which file operations are relative.
+            allowed_dirs: list of directories (absolute or relative to project_root) that are allowed for edits.
+            auto_apply: if True, writes are applied directly; otherwise writes create proposals under proposals_dir.
+            proposals_dir: directory where proposals are saved (absolute or relative to project_root).
         """
         self.project_root = os.path.abspath(project_root)
-        logger.info(f"FileTool initialized. Project root set to: {self.project_root}")
+        self.auto_apply = bool(auto_apply)
+        # Determine proposals directory
+        if proposals_dir:
+            self.proposals_dir = os.path.abspath(proposals_dir) if os.path.isabs(proposals_dir) else os.path.abspath(os.path.join(self.project_root, proposals_dir))
+        else:
+            self.proposals_dir = os.path.abspath(os.path.join(self.project_root, 'src', 'data', 'proposals'))
 
-    def _is_safe_path(self, path: str) -> bool:
-        """指定されたパスがプロジェクトルート内にあるかを確認します。"""
-        abs_path = os.path.abspath(os.path.join(self.project_root, path))
-        return os.path.commonpath([self.project_root, abs_path]) == self.project_root
+        os.makedirs(self.proposals_dir, exist_ok=True)
 
-    async def list_files(self, directory: str = ".") -> Dict[str, Any]:
+        if allowed_dirs:
+            self.allowed_paths = [os.path.abspath(p) if os.path.isabs(p) else os.path.abspath(os.path.join(self.project_root, p)) for p in allowed_dirs]
+        else:
+            self.allowed_paths = [
+                os.path.abspath(os.path.join(self.project_root, 'src', 'data', 'prompts')),
+                os.path.abspath(os.path.join(self.project_root, 'src', 'data', 'learning_data')),
+            ]
+
+        logger.info(f"FileTool initialized. Project root: {self.project_root}")
+        logger.debug(f"Allowed paths: {self.allowed_paths}")
+
+    def _is_safe_path(self, rel_path: str) -> bool:
         """
-        指定されたディレクトリ内のファイルとディレクトリを一覧表示します。
-
-        Args:
-            directory (str): 一覧表示するディレクトリの相対パス。
-
-        Returns:
-            Dict[str, Any]: ファイルとディレクトリのリスト、またはエラー情報。
+        Return True if rel_path (relative to project_root) is under one of the allowed paths.
+        This is a security check to prevent directory traversal attacks.
         """
+        # 1. Normalize the path to resolve '..' and '.'
+        normalized_path = os.path.normpath(os.path.join(self.project_root, rel_path))
+
+        # 2. Get the real path to resolve any symbolic links
+        try:
+            real_full_path = os.path.realpath(normalized_path)
+        except OSError:
+            # If the path doesn't exist, realpath can fail. Use the normalized path.
+            real_full_path = normalized_path
+
+        # 3. Check if the real path is within any of the allowed directories
+        for allowed_path in self.allowed_paths:
+            real_allowed_path = os.path.realpath(allowed_path)
+            if real_full_path.startswith(real_allowed_path):
+                return True
+        
+        logger.warning(f"Path traversal attempt detected or unsafe path access: {rel_path}")
+        return False
+
+    async def list_files(self, directory: str = '.') -> Dict[str, Any]:
         if not self._is_safe_path(directory):
             return {"error": f"アクセスが拒否されました: {directory}"}
 
         try:
-            full_path = os.path.join(self.project_root, directory)
-            items = os.listdir(full_path)
+            full = os.path.join(self.project_root, directory)
+            items = os.listdir(full)
             return {"files": items}
         except FileNotFoundError:
             return {"error": f"ディレクトリが見つかりません: {directory}"}
         except Exception as e:
-            logger.error(f"Error listing files in '{directory}': {e}")
+            logger.error(f"Error listing files: {e}")
             return {"error": str(e)}
 
     async def read_file(self, file_path: str) -> Dict[str, Any]:
-        """
-        指定されたファイルの内容を読み込みます。
-
-        Args:
-            file_path (str): 読み込むファイルの相対パス。
-
-        Returns:
-            Dict[str, Any]: ファイルの内容、またはエラー情報。
-        """
         if not self._is_safe_path(file_path):
             return {"error": f"アクセスが拒否されました: {file_path}"}
 
         try:
-            full_path = os.path.join(self.project_root, file_path)
-            with open(full_path, 'r', encoding='utf-8') as f:
+            full = os.path.join(self.project_root, file_path)
+            with open(full, 'r', encoding='utf-8') as f:
                 content = f.read()
             return {"content": content}
         except FileNotFoundError:
@@ -71,34 +93,48 @@ class FileTool:
             return {"error": str(e)}
 
     async def write_file(self, file_path: str, content: str) -> Dict[str, Any]:
-        """
-        指定されたファイルに内容を書き込みます。ファイルが存在しない場合は作成されます。
-
-        Args:
-            file_path (str): 書き込むファイルの相対パス。
-            content (str): 書き込む内容。
-
-        Returns:
-            Dict[str, Any]: 成功メッセージ、またはエラー情報。
-        """
+        """Write content to file_path. If auto_apply is False and path is under allowed paths, create a proposal instead of applying."""
         if not self._is_safe_path(file_path):
             return {"error": f"アクセスが拒否されました: {file_path}"}
 
+        full = os.path.join(self.project_root, file_path)
+
+        # If target is in allowed paths and auto_apply is False, create a proposal
+        abs_full = os.path.abspath(full)
+        is_allowed = any(os.path.commonpath([p, abs_full]) == p for p in self.allowed_paths)
+
+        if is_allowed and not self.auto_apply:
+            # create proposal metadata
+            proposal_id = f"proposal_{int(datetime.utcnow().timestamp())}_{uuid4().hex[:6]}"
+            proposal_path = os.path.join(self.proposals_dir, f"{proposal_id}.json")
+            meta = {
+                "target": file_path,
+                "content": content,
+                "created_at": datetime.utcnow().isoformat(),
+                "author": "agent"
+            }
+            try:
+                with open(proposal_path, 'w', encoding='utf-8') as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+                logger.info(f"Proposal created: {proposal_path}")
+                return {"status": "proposal_created", "proposal_file": os.path.basename(proposal_path), "message": f"提案が作成されました: {os.path.basename(proposal_path)}"}
+            except Exception as e:
+                logger.error(f"Failed to create proposal: {e}")
+                return {"error": str(e)}
+
         try:
-            full_path = os.path.join(self.project_root, file_path)
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            with open(full_path, 'w', encoding='utf-8') as f:
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, 'w', encoding='utf-8') as f:
                 f.write(content)
-            logger.info(f"File '{file_path}' has been written successfully.")
+            logger.info(f"File written: {file_path}")
             return {"status": "success", "message": f"ファイル '{file_path}' が正常に書き込まれました。"}
         except Exception as e:
-            logger.error(f"Error writing to file '{file_path}': {e}")
+            logger.error(f"Error writing file '{file_path}': {e}")
             return {"error": str(e)}
 
     async def initialize(self):
-        """ツールの非同期初期化（現バージョンでは何もしない）"""
-        logger.info("FileTool initialized (async).")
+        logger.info("FileTool async initialized")
 
     async def close(self):
-        """ツールのクローズ処理（現バージョンでは何もしない）"""
-        logger.info("FileTool closed.")
+        logger.info("FileTool closed")
+
