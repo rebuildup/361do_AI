@@ -86,14 +86,27 @@ class MultiAgentLearningSystem:
             "品質向上の戦略"
         ]
         
-        # ログ設定
+        # ログ設定（Windows文字エンコーディング対応）
+        log_filename = f'multi_agent_learning_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+        
+        # ファイルハンドラー（UTF-8エンコーディング）
+        file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # コンソールハンドラー（絵文字なしフォーマット）
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # フォーマッター設定
+        file_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+        console_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+        
+        file_handler.setFormatter(file_formatter)
+        console_handler.setFormatter(console_formatter)
+        
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s | %(levelname)s | %(message)s',
-            handlers=[
-                logging.FileHandler(f'multi_agent_learning_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
-                logging.StreamHandler()
-            ]
+            handlers=[file_handler, console_handler]
         )
         self.logger = logging.getLogger(__name__)
         
@@ -255,7 +268,7 @@ class MultiAgentLearningSystem:
         conversation_log = []
         
         for round_num in range(rounds):
-            self.logger.info(f"  ラウンド {round_num + 1}/{rounds}")
+            self.logger.info(f"ラウンド {round_num + 1}/{rounds}")
             
             # 各エージェントが順番に発言
             round_conversations = []
@@ -275,9 +288,9 @@ class MultiAgentLearningSystem:
                 
                 # 発言内容をログ出力
                 if conversation['success']:
-                    self.logger.info(f"    {conversation['agent_name']}: {conversation['content'][:100]}...")
+                    self.logger.info(f"{conversation['agent_name']}: {conversation['content'][:100]}...")
                 else:
-                    self.logger.error(f"    {conversation['agent_name']}: エラー")
+                    self.logger.error(f"{conversation['agent_name']}: エラー")
                 
                 # エージェント間の間隔
                 await asyncio.sleep(1)
@@ -293,7 +306,7 @@ class MultiAgentLearningSystem:
 
     async def cross_agent_learning(self):
         """エージェント間の相互学習"""
-        self.logger.info("エージェント間相互学習開始...")
+        self.logger.info("エージェント間相互学習開始")
         
         learning_results = []
         
@@ -302,7 +315,7 @@ class MultiAgentLearningSystem:
                 if not hasattr(agent_data['manager'], 'learning_tool') or not agent_data['manager'].learning_tool:
                     continue
                 
-                self.logger.info(f"  エージェント {agent_id} の学習実行中...")
+                self.logger.info(f"エージェント {agent_id} の学習実行中")
                 
                 # 他のエージェントの発言から学習データを生成
                 other_agents_data = []
@@ -408,14 +421,14 @@ class MultiAgentLearningSystem:
         time_limit_reached, time_status = self.check_time_limit()
         
         print(f"\n{'='*80}")
-        print(f"🔄 マルチエージェント学習サイクル {cycle_num}")
+        print(f"マルチエージェント学習サイクル {cycle_num}")
         print(f"{'='*80}")
-        print(f"⏰ {time_status}")
-        print(f"💬 総会話数: {self.learning_stats['total_conversations']}")
-        print(f"🧠 学習サイクル数: {self.learning_stats['total_learning_cycles']}")
-        print(f"🤝 知識共有数: {self.learning_stats['knowledge_shared']}")
+        print(f"時間: {time_status}")
+        print(f"総会話数: {self.learning_stats['total_conversations']}")
+        print(f"学習サイクル数: {self.learning_stats['total_learning_cycles']}")
+        print(f"知識共有数: {self.learning_stats['knowledge_shared']}")
         
-        print(f"\n📊 エージェント別統計:")
+        print(f"\nエージェント別統計:")
         for agent_id, stats in self.learning_stats['agent_interactions'].items():
             agent_name = self.agent_roles[agent_id]['name']
             print(f"  {agent_name}:")
@@ -443,7 +456,7 @@ class MultiAgentLearningSystem:
                     self.logger.info(f"時間制限到達: {time_status}")
                     break
                 
-                self.logger.info(f"\n🔄 学習サイクル {cycle_count} 開始")
+                self.logger.info(f"学習サイクル {cycle_count} 開始")
                 
                 # ランダムなトピックを選択
                 topic = random.choice(self.conversation_topics)
@@ -460,7 +473,7 @@ class MultiAgentLearningSystem:
                 
                 # サイクル間の待機時間（5分）
                 if not self.stop_requested:
-                    self.logger.info("⏳ 次のサイクルまで5分待機中... (Ctrl+Cで停止)")
+                    self.logger.info("次のサイクルまで5分待機中... (Ctrl+Cで停止)")
                     for i in range(300):  # 5分 = 300秒
                         if self.stop_requested:
                             break
@@ -489,21 +502,21 @@ class MultiAgentLearningSystem:
         total_runtime = (end_time - self.start_time).total_seconds() if self.start_time else 0
         
         print(f"\n{'='*100}")
-        print(f"🎉 マルチエージェント学習セッション完了")
+        print(f"マルチエージェント学習セッション完了")
         print(f"{'='*100}")
-        print(f"📅 開始時刻: {self.start_time.strftime('%Y-%m-%d %H:%M:%S') if self.start_time else 'Unknown'}")
-        print(f"📅 終了時刻: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"⏱️  総実行時間: {total_runtime/3600:.2f}時間 (制限: {self.time_limit_hours}時間)")
-        print(f"🔄 完了サイクル数: {total_cycles}")
-        print(f"💬 総会話数: {self.learning_stats['total_conversations']}")
-        print(f"🧠 学習サイクル数: {self.learning_stats['total_learning_cycles']}")
-        print(f"🤝 知識共有数: {self.learning_stats['knowledge_shared']}")
+        print(f"開始時刻: {self.start_time.strftime('%Y-%m-%d %H:%M:%S') if self.start_time else 'Unknown'}")
+        print(f"終了時刻: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"総実行時間: {total_runtime/3600:.2f}時間 (制限: {self.time_limit_hours}時間)")
+        print(f"完了サイクル数: {total_cycles}")
+        print(f"総会話数: {self.learning_stats['total_conversations']}")
+        print(f"学習サイクル数: {self.learning_stats['total_learning_cycles']}")
+        print(f"知識共有数: {self.learning_stats['knowledge_shared']}")
         
-        print(f"\n📊 エージェント別最終統計:")
+        print(f"\nエージェント別最終統計:")
         for agent_id, stats in self.learning_stats['agent_interactions'].items():
             agent_name = self.agent_roles[agent_id]['name']
             agent_data = self.agents.get(agent_id, {})
-            print(f"  🤖 {agent_name} ({agent_id}):")
+            print(f"  {agent_name} ({agent_id}):")
             print(f"    役割: {self.agent_roles[agent_id]['focus']}")
             print(f"    総発言数: {stats['messages_sent']}")
             print(f"    学習サイクル: {stats['learning_cycles']}")
@@ -512,7 +525,7 @@ class MultiAgentLearningSystem:
         
         if total_cycles > 0:
             avg_cycle_time = total_runtime / total_cycles
-            print(f"\n⏱️  平均サイクル時間: {avg_cycle_time/60:.1f}分")
+            print(f"\n平均サイクル時間: {avg_cycle_time/60:.1f}分")
         
         print(f"{'='*100}")
 
@@ -530,7 +543,7 @@ async def main():
     # テストモードの場合は短時間に設定
     time_limit = 0.1 if args.test_mode else args.hours  # テストモードは6分
     
-    print("🤖 マルチエージェント学習システム")
+    print("マルチエージェント学習システム")
     print("=" * 80)
     print("4つのエージェントが同時に会話し、相互学習を行います")
     print(f"実行時間制限: {time_limit}時間")
@@ -547,12 +560,12 @@ async def main():
             # マルチエージェント学習実行
             await learning_system.run_multi_agent_learning()
         else:
-            print("❌ エージェント初期化に失敗しました")
+            print("エラー: エージェント初期化に失敗しました")
             
     except KeyboardInterrupt:
-        print("\n👋 ユーザーによって中断されました")
+        print("\nユーザーによって中断されました")
     except Exception as e:
-        print(f"❌ 実行エラー: {e}")
+        print(f"実行エラー: {e}")
         import traceback
         traceback.print_exc()
     finally:
