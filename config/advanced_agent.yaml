@@ -1,0 +1,80 @@
+# Advanced Self-Learning Agent Configuration
+# RTX 4050 6GB VRAM 最適化設定
+
+project_name: "Advanced Self-Learning Agent"
+version: "1.0.0"
+environment: "development"
+
+# GPU設定
+gpu:
+  max_vram_gb: 5.0
+  quantization_levels: [8, 4, 3]
+  temperature_threshold: 80
+  memory_threshold_percent: 90.0
+  offload_threshold_percent: 95.0
+
+# CPU設定
+cpu:
+  max_threads: 16
+  offload_threshold: 0.8
+  memory_limit_gb: 24.0
+
+# メモリ設定
+memory:
+  system_ram_gb: 32.0
+  swap_limit_gb: 8.0
+  cache_size_mb: 1024
+
+# モデル設定
+models:
+  primary: "deepseek-r1:7b"
+  fallback: "qwen2.5:7b-instruct-q4_k_m"
+  emergency: "qwen2:1.5b-instruct-q4_k_m"
+  ollama_base_url: "http://localhost:11434"
+  context_length: 4096
+
+# 学習設定
+learning:
+  adapter_pool_size: 10
+  generation_size: 5
+  mutation_rate: 0.1
+  crossover_rate: 0.7
+  learning_rate: 0.0001
+  batch_size: 4
+  max_epochs: 3
+
+# 監視設定
+monitoring:
+  interval_seconds: 1.0
+  prometheus_port: 8000
+  enable_prometheus: true
+  log_level: "INFO"
+  metrics_retention_days: 7
+
+# データベース設定
+database:
+  sqlite_path: "data/agent_memory.db"
+  chroma_path: "data/chroma_db"
+  backup_interval_hours: 24
+  max_memory_items: 10000
+
+# API設定
+api:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 1
+  timeout_seconds: 300
+  max_request_size_mb: 100
+
+# UI設定
+ui:
+  streamlit_port: 8501
+  theme: "dark"
+  auto_refresh_seconds: 5
+
+# セキュリティ設定
+security:
+  enable_auth: false
+  api_key: null
+  rate_limit_per_minute: 60
+  encrypt_memory: false

@@ -1,0 +1,69 @@
+# Prometheus 設定ファイル
+# Advanced AI Agent 監視システム用
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# アラートルール設定
+rule_files:
+  - "prometheus_alerts.yml"
+
+# アラートマネージャー設定
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# スクレイプ設定
+scrape_configs:
+  # Prometheus 自体の監視
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Advanced AI Agent API 監視
+  - job_name: "advanced-agent-api"
+    static_configs:
+      - targets: ["localhost:8000"]
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+
+  # Advanced AI Agent システムメトリクス
+  - job_name: "advanced-agent-system"
+    static_configs:
+      - targets: ["localhost:8001"]
+    metrics_path: "/system/metrics"
+    scrape_interval: 10s
+
+  # Node Exporter (システム監視)
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["localhost:9100"]
+
+  # GPU メトリクス (nvidia-smi exporter)
+  - job_name: "nvidia-smi"
+    static_configs:
+      - targets: ["localhost:9835"]
+
+  # ChromaDB 監視
+  - job_name: "chromadb"
+    static_configs:
+      - targets: ["localhost:8002"]
+    metrics_path: "/api/v1/heartbeat"
+    scrape_interval: 30s
+
+  # Streamlit アプリケーション監視
+  - job_name: "streamlit-app"
+    static_configs:
+      - targets: ["localhost:8501"]
+    metrics_path: "/healthz"
+    scrape_interval: 30s
+# リモート書き込み設定（オプション）
+# remote_write:
+#   - url: "http://localhost:8086/api/v1/prom/write?db=prometheus"
+
+# リモート読み込み設定（オプション）
+# remote_read:
+#   - url: "http://localhost:8086/api/v1/prom/read?db=prometheus"

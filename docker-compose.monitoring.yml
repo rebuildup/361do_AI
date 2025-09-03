@@ -1,0 +1,141 @@
+# Docker Compose 監視システム設定
+# Prometheus + Grafana 統合監視システム
+
+version: "3.8"
+
+services:
+  # Advanced AI Agent メインアプリケーション
+  advanced-agent:
+    build: .
+    ports:
+      - "8000:8000" # FastAPI
+      - "8501:8501" # Streamlit
+    environment:
+      - ADVANCED_AGENT_LOG_LEVEL=INFO
+      - ADVANCED_AGENT_PROMETHEUS_ENABLED=true
+      - ADVANCED_AGENT_PROMETHEUS_PORT=8001
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - chromadb
+      - prometheus
+
+  # ChromaDB ベクトルデータベース
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Prometheus 監視システム
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus_alerts.yml:/etc/prometheus/prometheus_alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana ダッシュボード
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana:/etc/grafana/provisioning
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Node Exporter (システムメトリクス)
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # AlertManager (アラート管理)
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://localhost:9093"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # NVIDIA GPU Exporter (GPU メトリクス)
+  nvidia-gpu-exporter:
+    image: mindprince/nvidia_gpu_prometheus_exporter:0.1
+    ports:
+      - "9835:9835"
+    volumes:
+      - /usr/lib/nvidia-384:/usr/lib/nvidia-384
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - monitoring
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:

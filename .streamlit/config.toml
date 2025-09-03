@@ -1,0 +1,42 @@
+[global]
+# Streamlit の設定
+
+# 開発モード（新バージョンでは developmentMode は削除）
+# developmentMode = false
+
+[server]
+# サーバー設定
+# port = 8501  # developmentMode が true の場合は port 設定を削除
+address = "0.0.0.0"
+
+# CORS 設定
+enableCORS = true
+enableXsrfProtection = true
+
+# WebSocket 設定
+enableWebsocketCompression = true
+
+# アップロード設定
+maxUploadSize = 200
+maxMessageSize = 200
+
+[browser]
+# ブラウザ設定
+gatherUsageStats = false
+
+[theme]
+# テーマ設定
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
+
+[runner]
+# ランナー設定
+magicEnabled = true
+
+[logger]
+# ログ設定
+level = "info"
+messageFormat = "%(asctime)s.%(msecs)03d %(name)s: %(levelname)s: %(message)s"
