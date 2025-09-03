@@ -127,8 +127,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements_advanced.txt .
-RUN pip install -r requirements_advanced.txt
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 COPY src/ ./src/
 COPY config/ ./config/
@@ -151,7 +151,7 @@ CMD ["python", "-m", "src.advanced_agent.interfaces.fastapi_gateway"]
         # 必要な要素の確認
         assert "FROM python:" in content
         assert "WORKDIR /app" in content
-        assert "requirements_advanced.txt" in content
+        assert "requirements.txt" in content
         assert "EXPOSE" in content
         assert "CMD" in content
     

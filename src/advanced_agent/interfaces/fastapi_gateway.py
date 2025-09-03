@@ -191,8 +191,8 @@ class FastAPIGateway:
             # メッセージを結合してプロンプト作成
             prompt = self._messages_to_prompt(request.messages)
             
-            # モック推論実行
-            response_text = f"Mock response for: {prompt[:50]}..."
+            # 実際のOllama推論実行
+            response_text = await self._call_ollama_inference(prompt, request.model, request.temperature, request.max_tokens)
             
             # レスポンス構築
             choice = ChatCompletionChoice(
@@ -291,6 +291,62 @@ class FastAPIGateway:
                 prompt_parts.append(f"Assistant: {message.content}")
         
         return "\n".join(prompt_parts)
+    
+    async def _call_ollama_inference(self, prompt: str, model: str, temperature: float = 0.7, max_tokens: int = 500) -> str:
+        """実際のOllama推論実行"""
+        
+        try:
+            import ollama
+            
+            # Ollama API呼び出し
+            response = ollama.chat(
+                model=model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens
+                }
+            )
+            
+            return response["message"]["content"]
+            
+        except ImportError:
+            logger.error("ollama パッケージがインストールされていません")
+            return "エラー: ollama パッケージがインストールされていません。'pip install ollama' を実行してください。"
+            
+        except Exception as e:
+            logger.error(f"Ollama推論エラー: {e}")
+            
+            # フォールバック: 軽量モデルを試行
+            try:
+                fallback_models = ["qwen2:1.5b-instruct-q4_k_m", "qwen2.5:7b-instruct-q4_k_m"]
+                
+                for fallback_model in fallback_models:
+                    try:
+                        response = ollama.chat(
+                            model=fallback_model,
+                            messages=[
+                                {"role": "user", "content": prompt}
+                            ],
+                            options={
+                                "temperature": temperature,
+                                "num_predict": min(max_tokens, 200)  # 軽量化
+                            }
+                        )
+                        
+                        return f"[フォールバックモデル {fallback_model} による回答]\n{response['message']['content']}"
+                        
+                    except Exception as fallback_error:
+                        logger.warning(f"フォールバックモデル {fallback_model} エラー: {fallback_error}")
+                        continue
+                
+                # 全てのフォールバックが失敗
+                return f"申し訳ございません。AIモデルに接続できませんでした。Ollamaが起動しており、モデル '{model}' がダウンロードされているか確認してください。\n\nエラー詳細: {str(e)}"
+                
+            except Exception as final_error:
+                return f"システムエラーが発生しました: {str(final_error)}"
     
     async def start_server(self,
                           host: str = "0.0.0.0",

@@ -42,7 +42,7 @@ source .venv/bin/activate
 
 ```bash
 # 基本依存関係
-pip install -r requirements_advanced.txt
+pip install -r requirements.txt
 
 # 開発用依存関係（オプション）
 pip install -r requirements_dev.txt
