@@ -1,0 +1,48 @@
+created_at: 2025-09-03 22:49:36.489775
+current_model: deepseek-r1:7b
+models:
+  deepseek-r1:7b:
+    enabled: true
+    max_tokens: 500
+    name: deepseek-r1:7b
+    provider: ollama
+    repeat_penalty: 1.1
+    temperature: 0.7
+    top_k: 40
+    top_p: 0.9
+  qwen2.5:7b-instruct-q4_k_m:
+    enabled: true
+    max_tokens: 1000
+    name: qwen2.5:7b-instruct-q4_k_m
+    provider: ollama
+    repeat_penalty: 1.1
+    temperature: 0.8
+    top_k: 40
+    top_p: 0.9
+  qwen2:1.5b-instruct-q4_k_m:
+    enabled: true
+    max_tokens: 300
+    name: qwen2:1.5b-instruct-q4_k_m
+    provider: ollama
+    repeat_penalty: 1.1
+    temperature: 0.6
+    top_k: 40
+    top_p: 0.9
+system:
+  api_base_url: http://localhost:8000
+  enable_memory: true
+  enable_monitoring: true
+  gpu_memory_limit: 0.9
+  log_level: INFO
+  max_retries: 3
+  timeout: 30
+ui:
+  auto_refresh: true
+  auto_save: true
+  max_chat_history: 100
+  refresh_interval: 5
+  save_interval: 10
+  show_debug: false
+  theme: light
+updated_at: 2025-09-03 22:49:36.489775
+version: 1.0.0

@@ -861,7 +861,7 @@ class IntegrationTestSuite:
 ### 主要フレームワーク・ライブラリ
 
 ```python
-# requirements_advanced.txt - オープンソース最優先版
+# requirements.txt - オープンソース最優先版
 
 # === コア AI フレームワーク ===
 langchain>=0.1.0              # エージェント・メモリ・ツール統合

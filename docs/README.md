@@ -10,7 +10,7 @@ RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェン�
 
 - [📦 インストールガイド](INSTALLATION.md) - システムのセットアップ手順
 - [⚙️ 設定ガイド](CONFIGURATION.md) - 設定ファイルの詳細説明
-- [🚀 使用方法](USAGE.md) - 基本的な使用方法とベストプラクティス
+- [🚀 使用方法ガイド](USAGE.md) - 基本的な使用方法とベストプラクティス
 
 ### 技術リファレンス
 
@@ -63,7 +63,7 @@ RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェン�
 
 ```bash
 # 1. 依存関係のインストール
-pip install -r requirements_advanced.txt
+pip install -r requirements.txt
 
 # 2. Ollama モデルの準備
 ollama pull deepseek-r1:7b

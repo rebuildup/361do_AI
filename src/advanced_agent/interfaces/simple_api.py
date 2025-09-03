@@ -82,9 +82,19 @@ class SimpleAPIGateway:
                 messages = request.get("messages", [])
                 model = request.get("model", "deepseek-r1:7b")
                 
-                # 簡単なレスポンス生成
+                # 実際のOllama推論実行
                 last_message = messages[-1] if messages else {"content": ""}
-                response_text = f"Mock response for: {last_message.get('content', '')[:50]}..."
+                user_input = last_message.get('content', '')
+                
+                try:
+                    import ollama
+                    response = ollama.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": user_input}]
+                    )
+                    response_text = response["message"]["content"]
+                except Exception as e:
+                    response_text = f"Ollama接続エラー: {str(e)}。Ollamaが起動しているか確認してください。"
                 
                 return {
                     "id": f"chatcmpl-{uuid.uuid4()}",

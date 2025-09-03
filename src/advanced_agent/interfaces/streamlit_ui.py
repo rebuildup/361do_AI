@@ -9,6 +9,7 @@ import asyncio
 import logging
 import time
 import json
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 import uuid
@@ -26,6 +27,7 @@ try:
     from ..monitoring.system_monitor import SystemMonitor
     from ..memory.persistent_memory import PersistentMemoryManager
     from ..reasoning.basic_engine import BasicReasoningEngine
+    from ..core.error_handler import get_error_handler, ErrorType, ErrorSeverity, handle_error
 except ImportError as e:
     logging.warning(f"一部のモジュールをインポートできませんでした: {e}")
     # デモ用のモッククラス
@@ -42,7 +44,15 @@ except ImportError as e:
     
     class BasicReasoningEngine:
         async def reasoning_inference(self, prompt: str, **kwargs):
-            return {"response": f"Mock response for: {prompt}"}
+            try:
+                import ollama
+                response = ollama.chat(
+                    model="deepseek-r1:7b",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return {"response": response["message"]["content"]}
+            except Exception:
+                return {"response": "Ollama接続に失敗しました。Ollamaが起動しているか確認してください。"}
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +73,9 @@ class StreamlitUI:
         self.system_monitor = SystemMonitor()
         self.memory_manager = PersistentMemoryManager()
         self.reasoning_engine = BasicReasoningEngine()
+        
+        # エラーハンドラー初期化
+        self.error_handler = get_error_handler()
         
         logger.info("Streamlit UI 初期化完了")
     
@@ -131,7 +144,7 @@ class StreamlitUI:
         # 設定
         if "settings" not in st.session_state:
             st.session_state.settings = {
-                "model": "deepseek-r1:7b",
+                "model": "qwen2:7b-instruct",  # 実際に利用可能なモデル
                 "temperature": 0.7,
                 "max_tokens": 500,
                 "use_cot": True,
@@ -305,7 +318,7 @@ class StreamlitUI:
                 # フォールバック: 静的設定
                 st.session_state.settings["model"] = st.selectbox(
                     "モデル",
-                    ["deepseek-r1:7b", "qwen2.5:7b-instruct-q4_k_m", "qwen2:1.5b-instruct-q4_k_m"],
+                    ["qwen2:7b-instruct", "deepseek-r1:7b", "qwen2.5:7b-instruct-q4_k_m", "qwen2:1.5b-instruct-q4_k_m"],
                     index=0
                 )
                 
@@ -680,11 +693,149 @@ class StreamlitUI:
             </div>
             """, unsafe_allow_html=True)
             
-            # 推論ステップ表示
+            # 推論ステップ表示 - 改良版
             if message.get("reasoning_steps"):
-                with st.expander("🧠 推論過程を表示"):
-                    for i, step in enumerate(message["reasoning_steps"], 1):
-                        st.markdown(f"**ステップ {i}:** {step}")
+                reasoning_steps = message["reasoning_steps"]
+                step_count = len(reasoning_steps)
+                
+                with st.expander(f"🧠 推論過程を表示 ({step_count}ステップ)", expanded=False):
+                    # 推論品質インジケーター
+                    quality_score = message.get("quality_score", 0.0)
+                    confidence = message.get("confidence_score", 0.0)
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("推論ステップ数", step_count)
+                    with col2:
+                        st.metric("信頼度", f"{confidence:.2f}")
+                    with col3:
+                        if quality_score > 0:
+                            st.metric("品質スコア", f"{quality_score:.2f}")
+                    
+                    st.markdown("---")
+                    
+                    # 各推論ステップを表示
+                    for i, step in enumerate(reasoning_steps, 1):
+                        # ステップタイプを推定
+                        step_type = self._detect_step_type(step)
+                        step_icon = self._get_step_icon(step_type)
+                        
+                        # ステップ表示
+                        st.markdown(f"""
+                        <div style="margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 5px;">
+                            <strong>{step_icon} ステップ {i} ({step_type})</strong><br>
+                            <span style="color: #495057;">{step}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 推論統計
+                    if step_count > 0:
+                        avg_step_length = sum(len(step) for step in reasoning_steps) / step_count
+                        st.markdown(f"""
+                        <div style="margin-top: 15px; padding: 8px; background-color: #e9ecef; border-radius: 5px; font-size: 0.9rem;">
+                            📊 <strong>推論統計:</strong> 平均ステップ長: {avg_step_length:.0f}文字
+                        </div>
+                        """, unsafe_allow_html=True)
+    
+    def _detect_step_type(self, step: str) -> str:
+        """推論ステップのタイプを検出"""
+        
+        step_lower = step.lower()
+        
+        if any(keyword in step_lower for keyword in ['思考', 'thought', '考え', '検討']):
+            return "思考"
+        elif any(keyword in step_lower for keyword in ['行動', 'action', '実行', '計算']):
+            return "行動"
+        elif any(keyword in step_lower for keyword in ['観察', 'observation', '結果', '確認']):
+            return "観察"
+        elif any(keyword in step_lower for keyword in ['結論', 'conclusion', '回答', '答え']):
+            return "結論"
+        elif any(keyword in step_lower for keyword in ['分析', '理解', '整理']):
+            return "分析"
+        else:
+            return "推論"
+    
+    def _get_step_icon(self, step_type: str) -> str:
+        """ステップタイプに応じたアイコンを取得"""
+        
+        icons = {
+            "思考": "🤔",
+            "行動": "⚡",
+            "観察": "👁️",
+            "結論": "✅",
+            "分析": "🔍",
+            "推論": "💭"
+        }
+        
+        return icons.get(step_type, "📝")
+    
+    def _calculate_reasoning_quality(self, reasoning_steps: List[str], processing_time: float) -> float:
+        """推論品質スコア計算"""
+        
+        try:
+            quality_factors = []
+            
+            # ステップ数による品質評価
+            step_count = len(reasoning_steps)
+            if step_count >= 3:
+                step_score = min(step_count / 6.0, 1.0)  # 6ステップで最大
+            else:
+                step_score = step_count / 3.0
+            quality_factors.append(step_score)
+            
+            # ステップの多様性評価
+            step_types = set(self._detect_step_type(step) for step in reasoning_steps)
+            diversity_score = len(step_types) / 6.0  # 6種類のタイプで最大
+            quality_factors.append(diversity_score)
+            
+            # ステップの詳細度評価
+            avg_step_length = sum(len(step) for step in reasoning_steps) / step_count if step_count > 0 else 0
+            detail_score = min(avg_step_length / 100.0, 1.0)  # 100文字で最大
+            quality_factors.append(detail_score)
+            
+            # 処理時間効率評価
+            time_efficiency = 1.0 - min(processing_time / 20.0, 1.0)  # 20秒で最低
+            quality_factors.append(time_efficiency)
+            
+            return sum(quality_factors) / len(quality_factors) if quality_factors else 0.0
+            
+        except Exception as e:
+            logger.error(f"品質スコア計算エラー: {e}")
+            return 0.5
+    
+    def _calculate_confidence_score(self, reasoning_steps: List[str], response: str) -> float:
+        """信頼度スコア計算"""
+        
+        try:
+            confidence_factors = []
+            
+            # 推論ステップ数による信頼度
+            step_count = len(reasoning_steps)
+            step_confidence = min(step_count / 5.0, 1.0)  # 5ステップで最大
+            confidence_factors.append(step_confidence)
+            
+            # 論理的接続詞の存在
+            logical_connectors = ['なぜなら', 'したがって', 'そのため', 'つまり', 'また', 'さらに', 'because', 'therefore', 'thus']
+            connector_count = sum(1 for connector in logical_connectors if connector in response.lower())
+            connector_confidence = min(connector_count / 3.0, 1.0)  # 3個で最大
+            confidence_factors.append(connector_confidence)
+            
+            # 具体的な数値や事実の存在
+            has_numbers = bool(re.search(r'\d+', response))
+            has_specifics = any(keyword in response for keyword in ['具体的', '例えば', '実際に', '詳細'])
+            specificity_confidence = (0.5 if has_numbers else 0.0) + (0.5 if has_specifics else 0.0)
+            confidence_factors.append(specificity_confidence)
+            
+            # 結論の明確性
+            has_clear_conclusion = any(keyword in response for keyword in ['結論', '答え', '回答', '最終的', 'まとめ'])
+            conclusion_confidence = 1.0 if has_clear_conclusion else 0.6
+            confidence_factors.append(conclusion_confidence)
+            
+            return sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.5
+            
+        except Exception as e:
+            logger.error(f"信頼度スコア計算エラー: {e}")
+            return 0.5
     
     def _process_chat_message(self, user_input: str):
         """チャットメッセージ処理"""
@@ -728,10 +879,355 @@ class StreamlitUI:
         st.rerun()
     
     def _call_chat_api(self, user_input: str) -> Dict[str, Any]:
-        """チャット API 呼び出し"""
+        """チャット API 呼び出し - 実際のOllama接続"""
+        
+        start_time = time.time()
         
         try:
-            # FastAPI エンドポイント呼び出し
+            # 1. 直接Ollama API呼び出しを試行
+            ollama_response = self._call_ollama_direct(user_input)
+            if ollama_response:
+                processing_time = time.time() - start_time
+                # 推論ステップ抽出と品質評価
+                reasoning_steps = None
+                quality_score = 0.0
+                confidence_score = 0.85
+                
+                if st.session_state.settings.get("use_cot"):
+                    reasoning_steps = self._extract_reasoning_steps(ollama_response)
+                    if reasoning_steps:
+                        quality_score = self._calculate_reasoning_quality(reasoning_steps, processing_time)
+                        confidence_score = self._calculate_confidence_score(reasoning_steps, ollama_response)
+                
+                return {
+                    "response": ollama_response,
+                    "processing_time": processing_time,
+                    "confidence_score": confidence_score,
+                    "quality_score": quality_score,
+                    "reasoning_steps": reasoning_steps
+                }
+            
+            # 2. FastAPI エンドポイント呼び出しを試行
+            fastapi_response = self._call_fastapi_endpoint(user_input)
+            if fastapi_response:
+                processing_time = time.time() - start_time
+                return fastapi_response
+            
+            # 3. 軽量モデルでのフォールバック
+            fallback_response = self._call_ollama_fallback(user_input)
+            if fallback_response:
+                processing_time = time.time() - start_time
+                return {
+                    "response": fallback_response,
+                    "processing_time": processing_time,
+                    "confidence_score": 0.65,
+                    "model_used": "fallback"
+                }
+            
+            # 4. 最終フォールバック
+            return {
+                "response": "申し訳ございません。現在AIモデルに接続できません。Ollamaが起動しているか確認してください。",
+                "processing_time": time.time() - start_time,
+                "confidence_score": 0.0,
+                "error": "connection_failed"
+            }
+                
+        except Exception as e:
+            processing_time = time.time() - start_time
+            logger.error(f"チャットAPI呼び出しエラー: {e}")
+            
+            # エラーハンドリング統合
+            try:
+                error_info = asyncio.run(self.error_handler.handle_error(e, {
+                    "user_input": user_input,
+                    "model": st.session_state.settings.get("model", "unknown"),
+                    "processing_time": processing_time
+                }))
+                
+                # ユーザーフレンドリーなエラーメッセージ
+                user_message = self._generate_user_friendly_error_message(error_info)
+                
+                return {
+                    "response": user_message,
+                    "processing_time": processing_time,
+                    "confidence_score": 0.0,
+                    "error": str(e),
+                    "error_info": {
+                        "type": error_info.error_type.value,
+                        "severity": error_info.severity.value,
+                        "suggestions": error_info.recovery_suggestions
+                    }
+                }
+                
+            except Exception as handler_error:
+                logger.error(f"エラーハンドラー実行エラー: {handler_error}")
+                return {
+                    "response": f"システムエラーが発生しました: {str(e)}",
+                    "processing_time": processing_time,
+                    "confidence_score": 0.0,
+                    "error": str(e)
+                }
+    
+    def _call_ollama_direct(self, user_input: str) -> Optional[str]:
+        """直接Ollama API呼び出し - Chain-of-Thought推論統合"""
+        
+        try:
+            import ollama
+            
+            model = st.session_state.settings["model"]
+            temperature = st.session_state.settings["temperature"]
+            
+            # Chain-of-Thought 推論が有効な場合
+            if st.session_state.settings.get("use_cot", True):
+                return self._execute_cot_reasoning(user_input, model, temperature)
+            else:
+                # 通常の推論
+                response = ollama.chat(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": user_input}
+                    ],
+                    options={
+                        "temperature": temperature,
+                        "num_predict": st.session_state.settings.get("max_tokens", 500)
+                    }
+                )
+                
+                return response["message"]["content"]
+            
+        except ImportError:
+            logger.warning("ollama パッケージがインストールされていません")
+            return None
+        except Exception as e:
+            logger.error(f"Ollama直接呼び出しエラー: {e}")
+            return None
+    
+    def _execute_cot_reasoning(self, user_input: str, model: str, temperature: float) -> Optional[str]:
+        """Chain-of-Thought 推論実行"""
+        
+        try:
+            import ollama
+            
+            # ReAct Agent スタイルのプロンプト構築
+            cot_prompt = f"""あなたは段階的に考える優秀なAIアシスタントです。
+以下の問題を解決するために、段階的に推論してください。
+
+利用可能なツール:
+- calculator: 数式計算 (例: 2+3*4, 10/2)
+- analyzer: テキスト分析
+- knowledge: 知識検索
+
+推論形式:
+Question: 解決すべき問題
+Thought: 何を考え、どのような行動を取るべきか
+Action: 実行するアクション (calculator/analyzer/knowledge/none)
+Action Input: アクションへの入力
+Observation: アクションの結果
+... (必要に応じてThought/Action/Action Input/Observationを繰り返し)
+Thought: 最終的な答えがわかりました
+Final Answer: 最終回答
+
+重要な指示:
+1. 各ステップで明確に思考過程を示してください
+2. 複雑な問題は小さな部分に分解してください
+3. 計算が必要な場合はcalculatorツールを使用してください
+4. 最終回答では、推論過程を要約してください
+
+Question: {user_input}
+Thought:"""
+
+            # 段階的推論実行
+            reasoning_steps = []
+            current_prompt = cot_prompt
+            max_iterations = 5
+            
+            for iteration in range(max_iterations):
+                # Ollama API呼び出し
+                response = ollama.chat(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": current_prompt}
+                    ],
+                    options={
+                        "temperature": temperature,
+                        "num_predict": 200  # 各ステップは短めに
+                    }
+                )
+                
+                step_response = response["message"]["content"]
+                reasoning_steps.append(step_response)
+                
+                # Final Answerが含まれている場合は終了
+                if "Final Answer:" in step_response:
+                    break
+                
+                # Actionが含まれている場合はツール実行をシミュレート
+                if "Action:" in step_response and "Action Input:" in step_response:
+                    action_result = self._simulate_tool_execution(step_response)
+                    current_prompt += f"\n{step_response}\nObservation: {action_result}\nThought:"
+                else:
+                    current_prompt += f"\n{step_response}\nThought:"
+            
+            # 推論ステップを統合して最終回答を構築
+            final_response = self._build_cot_response(reasoning_steps, user_input)
+            return final_response
+            
+        except Exception as e:
+            logger.error(f"CoT推論エラー: {e}")
+            return None
+    
+    def _simulate_tool_execution(self, step_response: str) -> str:
+        """ツール実行シミュレーション"""
+        
+        try:
+            # Action と Action Input を抽出
+            action_match = re.search(r"Action:\s*(\w+)", step_response)
+            input_match = re.search(r"Action Input:\s*(.+?)(?=\n|$)", step_response)
+            
+            if not action_match or not input_match:
+                return "ツールの実行に失敗しました"
+            
+            action = action_match.group(1).lower()
+            action_input = input_match.group(1).strip()
+            
+            # ツール実行
+            if action == "calculator":
+                return self._execute_calculator(action_input)
+            elif action == "analyzer":
+                return self._execute_analyzer(action_input)
+            elif action == "knowledge":
+                return self._execute_knowledge_search(action_input)
+            else:
+                return f"不明なツール: {action}"
+                
+        except Exception as e:
+            return f"ツール実行エラー: {str(e)}"
+    
+    def _execute_calculator(self, expression: str) -> str:
+        """計算ツール実行"""
+        
+        try:
+            # 安全な計算のため、基本的な演算のみ許可
+            import ast
+            import operator
+            
+            # サポートする演算子
+            ops = {
+                ast.Add: operator.add,
+                ast.Sub: operator.sub,
+                ast.Mult: operator.mul,
+                ast.Div: operator.truediv,
+                ast.Pow: operator.pow,
+                ast.USub: operator.neg,
+            }
+            
+            def eval_expr(node):
+                if isinstance(node, ast.Num):
+                    return node.n
+                elif isinstance(node, ast.Constant):  # Python 3.8+
+                    return node.value
+                elif isinstance(node, ast.BinOp):
+                    return ops[type(node.op)](eval_expr(node.left), eval_expr(node.right))
+                elif isinstance(node, ast.UnaryOp):
+                    return ops[type(node.op)](eval_expr(node.operand))
+                else:
+                    raise TypeError(f"Unsupported operation: {node}")
+            
+            # 式を解析して計算
+            result = eval_expr(ast.parse(expression, mode='eval').body)
+            return f"計算結果: {result}"
+            
+        except Exception as e:
+            return f"計算エラー: {str(e)}"
+    
+    def _execute_analyzer(self, text: str) -> str:
+        """テキスト分析ツール実行"""
+        
+        try:
+            word_count = len(text.split())
+            char_count = len(text)
+            sentence_count = len([s for s in text.split('.') if s.strip()])
+            
+            # 簡単な感情分析
+            positive_words = ['良い', '素晴らしい', '優秀', '成功', '効果的', 'good', 'great', 'excellent', '正しい', '適切']
+            negative_words = ['悪い', '問題', '失敗', '困難', '危険', 'bad', 'problem', 'fail', '間違い', '不適切']
+            
+            positive_count = sum(1 for word in positive_words if word in text.lower())
+            negative_count = sum(1 for word in negative_words if word in text.lower())
+            
+            sentiment = "中性"
+            if positive_count > negative_count:
+                sentiment = "ポジティブ"
+            elif negative_count > positive_count:
+                sentiment = "ネガティブ"
+            
+            return f"分析結果: 文字数{char_count}, 単語数{word_count}, 文数{sentence_count}, 感情{sentiment}"
+            
+        except Exception as e:
+            return f"分析エラー: {str(e)}"
+    
+    def _execute_knowledge_search(self, query: str) -> str:
+        """知識検索ツール実行"""
+        
+        # 簡易的な知識ベース
+        knowledge_base = {
+            "python": "Pythonは高水準プログラミング言語で、読みやすく書きやすい構文が特徴です。",
+            "ai": "人工知能（AI）は、人間の知能を模倣するコンピューターシステムです。",
+            "machine learning": "機械学習は、データからパターンを学習してタスクを実行するAIの手法です。",
+            "deep learning": "深層学習は、多層ニューラルネットワークを使用する機械学習の手法です。",
+            "langchain": "LangChainは、大規模言語モデルを使用したアプリケーション開発のためのフレームワークです。",
+            "ollama": "Ollamaは、ローカル環境で大規模言語モデルを実行するためのツールです。",
+            "streamlit": "Streamlitは、Pythonでデータアプリケーションを簡単に作成できるフレームワークです。"
+        }
+        
+        query_lower = query.lower()
+        for key, value in knowledge_base.items():
+            if key in query_lower:
+                return f"知識: {value}"
+        
+        return f"'{query}'に関する情報が見つかりませんでした。"
+    
+    def _build_cot_response(self, reasoning_steps: List[str], original_question: str) -> str:
+        """Chain-of-Thought レスポンス構築"""
+        
+        try:
+            # 最終回答を抽出
+            final_answer = ""
+            for step in reversed(reasoning_steps):
+                if "Final Answer:" in step:
+                    final_answer_match = re.search(r"Final Answer:\s*(.+?)(?=\n|$)", step, re.DOTALL)
+                    if final_answer_match:
+                        final_answer = final_answer_match.group(1).strip()
+                        break
+            
+            # 推論過程を要約
+            thought_steps = []
+            for i, step in enumerate(reasoning_steps, 1):
+                if "Thought:" in step:
+                    thought_match = re.search(r"Thought:\s*(.+?)(?=Action:|Final Answer:|$)", step, re.DOTALL)
+                    if thought_match:
+                        thought = thought_match.group(1).strip()
+                        if thought and len(thought) > 10:  # 意味のある思考のみ
+                            thought_steps.append(f"ステップ{i}: {thought}")
+            
+            # 最終レスポンス構築
+            if final_answer:
+                response = f"{final_answer}\n\n"
+                if thought_steps:
+                    response += "【推論過程】\n" + "\n".join(thought_steps[:5])  # 最大5ステップ
+                return response
+            else:
+                # Final Answerが見つからない場合は最後のステップを使用
+                return reasoning_steps[-1] if reasoning_steps else "推論を完了できませんでした。"
+                
+        except Exception as e:
+            logger.error(f"CoTレスポンス構築エラー: {e}")
+            return "推論結果の構築中にエラーが発生しました。"
+    
+    def _call_fastapi_endpoint(self, user_input: str) -> Optional[Dict[str, Any]]:
+        """FastAPI エンドポイント呼び出し"""
+        
+        try:
             url = f"{self.api_base_url}/v1/chat/completions"
             
             payload = {
@@ -749,19 +1245,106 @@ class StreamlitUI:
                 data = response.json()
                 return {
                     "response": data["choices"][0]["message"]["content"],
-                    "processing_time": 1.5,  # 簡略化
-                    "confidence_score": 0.85  # 簡略化
+                    "processing_time": 1.5,
+                    "confidence_score": 0.85
                 }
             else:
-                return {"response": f"API エラー: {response.status_code}"}
+                logger.warning(f"FastAPI エラー: {response.status_code}")
+                return None
                 
         except Exception as e:
-            # フォールバック: ローカル推論
-            return {
-                "response": f"Mock response for: {user_input}",
-                "processing_time": 0.5,
-                "confidence_score": 0.75
-            }
+            logger.error(f"FastAPI呼び出しエラー: {e}")
+            return None
+    
+    def _call_ollama_fallback(self, user_input: str) -> Optional[str]:
+        """軽量モデルでのフォールバック"""
+        
+        try:
+            import ollama
+            
+            # 軽量モデルを試行
+            fallback_models = ["qwen2:7b-instruct", "qwen2:1.5b-instruct-q4_k_m", "qwen2.5:7b-instruct-q4_k_m"]
+            
+            for model in fallback_models:
+                try:
+                    response = ollama.chat(
+                        model=model,
+                        messages=[
+                            {"role": "user", "content": user_input}
+                        ],
+                        options={
+                            "temperature": 0.7,
+                            "num_predict": 200  # 軽量化のため短く
+                        }
+                    )
+                    
+                    return f"[軽量モデル {model} による回答]\n{response['message']['content']}"
+                    
+                except Exception as model_error:
+                    logger.warning(f"フォールバックモデル {model} エラー: {model_error}")
+                    continue
+            
+            return None
+            
+        except ImportError:
+            return None
+        except Exception as e:
+            logger.error(f"フォールバック呼び出しエラー: {e}")
+            return None
+    
+    def _extract_reasoning_steps(self, response: str) -> List[str]:
+        """推論ステップの抽出 - 改良版"""
+        
+        try:
+            steps = []
+            
+            # Chain-of-Thought パターンを検出
+            cot_patterns = [
+                r"ステップ\d+:\s*(.+?)(?=ステップ\d+:|$)",
+                r"Thought:\s*(.+?)(?=Action:|Observation:|Final Answer:|$)",
+                r"Action:\s*(.+?)(?=Action Input:|Thought:|$)",
+                r"Observation:\s*(.+?)(?=Thought:|Action:|$)",
+                r"\d+\.\s*(.+?)(?=\d+\.|$)",
+                r"【推論過程】\n(.+?)(?=【|$)"
+            ]
+            
+            for pattern in cot_patterns:
+                matches = re.finditer(pattern, response, re.DOTALL | re.IGNORECASE)
+                for match in matches:
+                    content = match.group(1).strip()
+                    if content and len(content) > 10:  # 意味のあるステップのみ
+                        # 改行を除去して整形
+                        content = re.sub(r'\n+', ' ', content).strip()
+                        if content not in steps:  # 重複除去
+                            steps.append(content)
+            
+            # 番号付きリストや段階的思考キーワードも検出
+            lines = response.split('\n')
+            for line in lines:
+                line = line.strip()
+                
+                # 番号付きリスト検出
+                if re.match(r'^\d+\.\s+.{10,}', line):
+                    clean_line = re.sub(r'^\d+\.\s+', '', line)
+                    if clean_line not in steps:
+                        steps.append(clean_line)
+                
+                # 段階的思考キーワード検出
+                elif any(keyword in line for keyword in ['理解', '整理', '検討', '回答', 'ステップ', '段階', '分析', '考察']):
+                    if len(line) > 15 and line not in steps:
+                        steps.append(line)
+            
+            # 重複除去と長さ制限
+            unique_steps = []
+            for step in steps:
+                if step not in unique_steps and len(step) > 10:
+                    unique_steps.append(step[:200])  # 各ステップを200文字以内に制限
+            
+            return unique_steps[:8]  # 最大8ステップまで
+            
+        except Exception as e:
+            logger.error(f"推論ステップ抽出エラー: {e}")
+            return []
     
     def _render_monitoring_dashboard(self):
         """監視ダッシュボード"""
@@ -1130,6 +1713,26 @@ class StreamlitUI:
     def _render_realtime_chat_status(self):
         """リアルタイムチャットステータス表示"""
         
+        # Ollama接続状況チェック
+        ollama_status = self._check_ollama_connection()
+        
+        # 接続状況表示
+        if ollama_status["connected"]:
+            status_color = "#d4edda"
+            status_icon = "✅"
+            status_text = f"Ollama接続中 ({ollama_status['model']})"
+        else:
+            status_color = "#f8d7da"
+            status_icon = "❌"
+            status_text = f"Ollama未接続 - {ollama_status['error']}"
+        
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; padding: 8px; background-color: {status_color}; border-radius: 5px; margin: 5px 0; font-size: 0.9rem;">
+            <div style="margin-right: 8px;">{status_icon}</div>
+            <div>{status_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         # 処理中インジケーター
         if st.session_state.get("processing", False):
             st.markdown("""
@@ -1139,17 +1742,60 @@ class StreamlitUI:
             </div>
             """, unsafe_allow_html=True)
         
-        # 最後の応答時間
+        # 最後の応答時間と使用モデル
         if st.session_state.messages:
             last_message = st.session_state.messages[-1]
             if last_message.get("role") == "assistant":
                 processing_time = last_message.get("processing_time", 0)
+                model_used = last_message.get("model_used", "primary")
+                confidence = last_message.get("confidence_score", 0)
+                
+                model_text = " (フォールバック)" if model_used == "fallback" else ""
                 
                 st.markdown(f"""
                 <div style="text-align: right; color: #6c757d; font-size: 0.8rem; margin: 5px 0;">
-                    最後の応答時間: {processing_time:.2f}秒
+                    最後の応答時間: {processing_time:.2f}秒{model_text} | 信頼度: {confidence:.2f}
                 </div>
                 """, unsafe_allow_html=True)
+    
+    def _check_ollama_connection(self) -> Dict[str, Any]:
+        """Ollama接続状況チェック"""
+        
+        try:
+            import ollama
+            
+            # 現在のモデルで接続テスト
+            model = st.session_state.settings["model"]
+            
+            # モデル一覧取得で接続確認
+            models = ollama.list()
+            
+            # 指定モデルが利用可能かチェック
+            available_models = [m["name"] for m in models["models"]]
+            
+            if model in available_models:
+                return {
+                    "connected": True,
+                    "model": model,
+                    "available_models": available_models
+                }
+            else:
+                return {
+                    "connected": False,
+                    "error": f"モデル '{model}' が見つかりません",
+                    "available_models": available_models
+                }
+                
+        except ImportError:
+            return {
+                "connected": False,
+                "error": "ollama パッケージが未インストール"
+            }
+        except Exception as e:
+            return {
+                "connected": False,
+                "error": f"接続エラー: {str(e)}"
+            }
     
     def _auto_refresh(self):
         """自動リフレッシュ - Streamlit の既存応答性機能による リアルタイム更新"""
@@ -1243,6 +1889,43 @@ class StreamlitUI:
                     st.success(f"メモリ: {memory_percent:.1f}% (正常)")
         
         return progress_container
+    
+    def _generate_user_friendly_error_message(self, error_info) -> str:
+        """ユーザーフレンドリーなエラーメッセージ生成"""
+        
+        try:
+            error_type = error_info.error_type.value
+            severity = error_info.severity.value
+            
+            base_messages = {
+                "connection_error": "🔌 AI モデルへの接続に失敗しました。",
+                "model_error": "🤖 AI モデルの処理中にエラーが発生しました。",
+                "timeout_error": "⏱️ AI モデルの応答がタイムアウトしました。",
+                "memory_error": "💾 メモリ不足のため処理を完了できませんでした。",
+                "unknown_error": "❓ 予期しないエラーが発生しました。"
+            }
+            
+            base_message = base_messages.get(error_type, base_messages["unknown_error"])
+            
+            # 復旧提案を追加
+            suggestions = error_info.recovery_suggestions
+            if suggestions:
+                suggestion_text = "\n\n【💡 対処方法】\n" + "\n".join(f"• {s}" for s in suggestions[:3])
+                return base_message + suggestion_text
+            
+        except Exception as e:
+            logger.warning(f"エラーメッセージ生成エラー: {e}")
+        
+        # デフォルトの対処方法
+        default_suggestions = [
+            "Ollama サーバーが起動しているか確認してください",
+            "モデルが正しくインストールされているか確認してください (ollama list)",
+            "しばらく待ってから再試行してください",
+            "別のモデルを選択してみてください"
+        ]
+        
+        suggestion_text = "\n\n【💡 対処方法】\n" + "\n".join(f"• {s}" for s in default_suggestions)
+        return "🔌 AI モデルへの接続に問題があります。" + suggestion_text
 
 
 def main():

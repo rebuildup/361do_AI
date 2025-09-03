@@ -43,11 +43,22 @@ RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェン�
 ### 1. 環境準備
 
 ```bash
-# オープンソース依存関係のインストール
-pip install -r requirements_advanced.txt
+# 1. リポジトリのクローン
+git clone <repository-url>
+cd advanced-self-learning-agent
 
-# Ollama のセットアップ
-curl -fsSL https://ollama.ai/install.sh | sh
+# 2. Python仮想環境の作成
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# Linux/Mac
+source .venv/bin/activate
+
+# 3. 依存関係のインストール
+pip install -r requirements.txt
+
+# 4. Ollama のセットアップ
+# https://ollama.ai/ からダウンロード・インストール
 ollama pull deepseek-r1:7b
 ollama pull qwen2.5:7b-instruct-q4_k_m
 ollama pull qwen2:1.5b-instruct-q4_k_m
@@ -56,29 +67,38 @@ ollama pull qwen2:1.5b-instruct-q4_k_m
 ### 2. システム起動
 
 ```bash
-# LangChain + Ollama エージェントの起動
-python -m src.advanced_agent.main
+# Web UI での使用（推奨）
+streamlit run src/advanced_agent/interfaces/streamlit_app.py
+# ブラウザで http://localhost:8501 にアクセス
 
-# Streamlit Web UI でのアクセス
-streamlit run src/advanced_agent/interfaces/web_ui.py
+# API サーバーでの使用
+python -m src.advanced_agent.interfaces.fastapi_gateway
+# API ドキュメント: http://localhost:8000/docs
 
-# FastAPI サーバー
-uvicorn src.advanced_agent.interfaces.api_gateway:app --reload
+# CLI での基本テスト
+python -m src.advanced_agent.reasoning.demo
 ```
 
-### 3. オープンソース統合例
+### 3. 基本的な使用例
 
 ```python
-from langchain_community.llms import Ollama
-from langchain.agents import create_react_agent
-from langchain_community.vectorstores import Chroma
+# Python クライアントでの使用
+import asyncio
+from src.advanced_agent.reasoning.basic_engine import BasicReasoningEngine
 
-# LangChain + Ollama 統合
-llm = Ollama(model="deepseek-r1:7b")
-agent = create_react_agent(llm=llm, tools=tools)
+async def chat_example():
+    engine = BasicReasoningEngine()
 
-# ChromaDB 永続的記憶
-vector_store = Chroma(persist_directory="./data/chroma_db")
+    # 基本的な推論
+    response = await engine.reason(
+        "Pythonでクイックソートを実装してください"
+    )
+
+    print(f"応答: {response.content}")
+    print(f"推論ステップ: {response.reasoning_steps}")
+
+# 実行
+asyncio.run(chat_example())
 ```
 
 ## ⚙️ システム要件
@@ -147,11 +167,17 @@ python -m pytest tests/ --cov=src/advanced_agent
 
 ## 📚 ドキュメント
 
-- [インストールガイド](docs/INSTALLATION.md)
-- [設定ガイド](docs/CONFIGURATION.md)
-- [API リファレンス](docs/API_REFERENCE.md)
-- [アーキテクチャ](docs/ARCHITECTURE.md)
-- [トラブルシューティング](docs/TROUBLESHOOTING.md)
+### 基本ガイド
+
+- [📦 インストールガイド](docs/INSTALLATION.md) - システムのセットアップ手順
+- [⚙️ 設定ガイド](docs/CONFIGURATION.md) - 設定ファイルの詳細説明
+- [🚀 使用方法ガイド](docs/USAGE.md) - 基本的な使用方法とベストプラクティス
+
+### 技術リファレンス
+
+- [🔌 API リファレンス](docs/API_REFERENCE.md) - REST API の詳細仕様
+- [🏗️ アーキテクチャ](docs/ARCHITECTURE.md) - システム設計の詳細
+- [🔧 トラブルシューティング](docs/TROUBLESHOOTING.md) - 問題解決ガイド
 
 ## 🤝 貢献
 
