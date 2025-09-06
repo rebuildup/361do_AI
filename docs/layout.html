@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ダッシュボード</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --sidebar-width-expanded: 288px;
+        --sidebar-width-collapsed: 48px;
+        --main-content-width: 768px;
+        --chat-panel-height: 80px;
+        --primary-color: #000000;
+        --secondary-color: #333333;
+        --background-color: #ffffff;
+        --border-color: #e0e0e0;
+        --text-color: #333333;
+        --card-background: #f8f8f8;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+      }
+
+      /* アプリケーションレイアウト */
+      .app-layout {
+        display: flex;
+        height: 100vh;
+      }
+
+      /* サイドバー */
+      .app-sidebar {
+        width: var(--sidebar-width-expanded);
+        background: var(--primary-color);
+        color: white;
+        transition: width 0.3s ease;
+        position: relative;
+        z-index: 1000;
+        overflow: hidden;
+      }
+
+      .app-sidebar.collapsed {
+        width: var(--sidebar-width-collapsed);
+      }
+
+      /* サイドバートグルボタン */
+      .sidebar-toggle {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border: 1px solid #666666;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        z-index: 10;
+      }
+
+      .sidebar-toggle:hover {
+        background: var(--secondary-color);
+        border-color: #999999;
+      }
+
+      .sidebar-toggle i {
+        font-size: 10px;
+      }
+
+      /* サイドバーコンテンツ */
+      .sidebar-content {
+        padding: 40px 20px 20px 20px;
+        overflow: hidden;
+      }
+
+      .app-sidebar.collapsed .sidebar-content {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .sidebar-brand {
+        font-size: 1.5em;
+        font-weight: bold;
+        margin-bottom: 30px;
+        white-space: nowrap;
+        color: white;
+      }
+
+      .sidebar-nav {
+        list-style: none;
+      }
+
+      .nav-item {
+        margin-bottom: 15px;
+      }
+
+      .nav-link {
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        border-radius: 4px;
+      }
+
+      .nav-link:hover {
+        background: var(--secondary-color);
+      }
+
+      .nav-icon {
+        margin-right: 12px;
+        width: 20px;
+        text-align: center;
+      }
+
+      /* サイドバー縮小時のアイコン */
+      .app-sidebar.collapsed .sidebar-icons {
+        display: block;
+        padding: 40px 0 20px 0;
+      }
+
+      .sidebar-icons {
+        display: none;
+      }
+
+      .sidebar-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--sidebar-width-collapsed);
+        height: 48px;
+        color: white;
+        text-decoration: none;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+        border-radius: 4px;
+      }
+
+      .sidebar-icon:hover {
+        background: var(--secondary-color);
+      }
+
+      .sidebar-icon i {
+        font-size: 18px;
+      }
+
+      /* メインコンテンツエリア */
+      .app-main {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        background: var(--background-color);
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .main-container {
+        width: var(--main-content-width);
+        height: 100vh;
+        background: var(--background-color);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* スクロール可能なメインコンテンツ */
+      .main-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 40px;
+        margin-bottom: var(--chat-panel-height);
+      }
+
+      .page-header {
+        margin-bottom: 30px;
+      }
+
+      .page-title {
+        font-size: 2em;
+        color: var(--primary-color);
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .page-description {
+        line-height: 1.6;
+        color: var(--text-color);
+        margin-bottom: 20px;
+      }
+
+      .content-card {
+        background: var(--card-background);
+        padding: 20px;
+        margin: 20px 0;
+        border-left: 4px solid var(--primary-color);
+        border-radius: 4px;
+      }
+
+      .content-card h3 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+      }
+
+      .content-card p {
+        line-height: 1.5;
+        color: var(--text-color);
+      }
+
+      /* チャットパネル */
+      .chat-panel {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: var(--chat-panel-height);
+        border-top: 2px solid var(--primary-color);
+        background: var(--background-color);
+        padding: 15px;
+        z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .chat-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        height: 100%;
+      }
+
+      .chat-input {
+        flex: 1;
+        padding: 12px 15px;
+        border: 2px solid var(--primary-color);
+        font-size: 14px;
+        height: 50px;
+        font-family: inherit;
+        outline: none;
+        border-radius: 4px;
+      }
+
+      .chat-input:focus {
+        border-color: var(--secondary-color);
+      }
+
+      .chat-submit {
+        padding: 12px 20px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        height: 50px;
+        transition: background 0.3s ease;
+        border-radius: 4px;
+      }
+
+      .chat-submit:hover:not(:disabled) {
+        background: var(--secondary-color);
+      }
+
+      .chat-submit:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+      }
+
+      /* レスポンシブ対応 */
+      @media (max-width: 768px) {
+        :root {
+          --main-content-width: 100%;
+        }
+
+        .main-content {
+          padding: 20px;
+        }
+
+        .app-sidebar {
+          position: absolute;
+          height: 100vh;
+          z-index: 2000;
+        }
+
+        .app-sidebar:not(.collapsed) {
+          box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      /* ユーティリティクラス */
+      .text-center {
+        text-align: center;
+      }
+
+      .mb-2 {
+        margin-bottom: 20px;
+      }
+
+      .feature-list {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .feature-list li {
+        padding: 4px 0;
+        position: relative;
+        padding-left: 20px;
+      }
+
+      .feature-list li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: var(--primary-color);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- サイドバー -->
+      <aside class="app-sidebar" id="appSidebar">
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- サイドバーコンテンツ -->
+        <div class="sidebar-content">
+          <div class="sidebar-brand">Dashboard</div>
+          <nav>
+            <ul class="sidebar-nav">
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="fas fa-home nav-icon"></i>
+                  <span>ホーム</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="fas fa-chart-bar nav-icon"></i>
+                  <span>分析</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="fas fa-users nav-icon"></i>
+                  <span>ユーザー管理</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="fas fa-cog nav-icon"></i>
+                  <span>設定</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="fas fa-file-text nav-icon"></i>
+                  <span>レポート</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        <!-- 縮小時のアイコンナビゲーション -->
+        <div class="sidebar-icons">
+          <a href="#" class="sidebar-icon" title="ホーム"
+            ><i class="fas fa-home"></i
+          ></a>
+          <a href="#" class="sidebar-icon" title="分析"
+            ><i class="fas fa-chart-bar"></i
+          ></a>
+          <a href="#" class="sidebar-icon" title="ユーザー管理"
+            ><i class="fas fa-users"></i
+          ></a>
+          <a href="#" class="sidebar-icon" title="設定"
+            ><i class="fas fa-cog"></i
+          ></a>
+          <a href="#" class="sidebar-icon" title="レポート"
+            ><i class="fas fa-file-text"></i
+          ></a>
+        </div>
+      </aside>
+
+      <!-- メインコンテンツ -->
+      <main class="app-main">
+        <div class="main-container">
+          <!-- スクロール可能なコンテンツ -->
+          <div class="main-content">
+            <header class="page-header">
+              <h1 class="page-title">ダッシュボード</h1>
+              <p class="page-description">
+                管理画面へようこそ。こちらから各種機能にアクセスできます。
+                サイドバーからナビゲーションを選択してください。
+              </p>
+            </header>
+
+            <section class="content-card">
+              <h3>システム概要</h3>
+              <ul class="feature-list">
+                <li>レスポンシブデザイン対応</li>
+                <li>サイドバーの開閉機能</li>
+                <li>リアルタイムチャット機能</li>
+                <li>キーボードショートカット対応</li>
+                <li>モダンなユーザーインターフェース</li>
+              </ul>
+            </section>
+
+            <section class="content-card">
+              <h3>最新の活動</h3>
+              <p>
+                システムは正常に稼働しています。
+                全ての機能が利用可能な状態です。
+                問題が発生した場合は、サポートチームまでお問い合わせください。
+              </p>
+            </section>
+
+            <section class="content-card">
+              <h3>パフォーマンス</h3>
+              <p>
+                システムパフォーマンスは良好です。 レスポンス時間: 0.5秒以下<br />
+                稼働率: 99.9%<br />
+                アクティブユーザー: 1,247名
+              </p>
+            </section>
+
+            <section class="content-card">
+              <h3>操作ガイド</h3>
+              <p>
+                Ctrl + B でサイドバーの開閉ができます。
+                下部のチャット欄からサポートチームと連絡を取ることができます。
+                各機能の詳細については、ヘルプドキュメントをご参照ください。
+              </p>
+            </section>
+
+            <section class="content-card">
+              <h3>通知とアラート</h3>
+              <p>
+                現在、重要な通知はありません。
+                システムメンテナンスの予定がある場合は、 事前に通知いたします。
+              </p>
+            </section>
+          </div>
+
+          <!-- チャットパネル -->
+          <div class="chat-panel">
+            <form class="chat-form" id="chatForm">
+              <input
+                type="text"
+                class="chat-input"
+                id="chatInput"
+                placeholder="サポートチームにメッセージを送信..."
+                autocomplete="off"
+              />
+              <button
+                type="submit"
+                class="chat-submit"
+                id="chatSubmit"
+                disabled
+              >
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // DOM要素の取得
+      const sidebar = document.getElementById("appSidebar");
+      const sidebarToggle = document.getElementById("sidebarToggle");
+      const chatForm = document.getElementById("chatForm");
+      const chatInput = document.getElementById("chatInput");
+      const chatSubmit = document.getElementById("chatSubmit");
+
+      // サイドバー機能
+      class SidebarController {
+        constructor(sidebar, toggle) {
+          this.sidebar = sidebar;
+          this.toggle = toggle;
+          this.init();
+        }
+
+        init() {
+          this.toggle.addEventListener("click", () => this.toggleSidebar());
+          this.setupKeyboardShortcuts();
+        }
+
+        toggleSidebar() {
+          this.sidebar.classList.toggle("collapsed");
+          this.updateToggleIcon();
+        }
+
+        updateToggleIcon() {
+          const icon = this.toggle.querySelector("i");
+          if (this.sidebar.classList.contains("collapsed")) {
+            icon.className = "fas fa-chevron-right";
+          } else {
+            icon.className = "fas fa-bars";
+          }
+        }
+
+        setupKeyboardShortcuts() {
+          document.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key === "b") {
+              e.preventDefault();
+              this.toggleSidebar();
+            }
+          });
+        }
+      }
+
+      // チャット機能
+      class ChatController {
+        constructor(form, input, submit) {
+          this.form = form;
+          this.input = input;
+          this.submit = submit;
+          this.init();
+        }
+
+        init() {
+          this.form.addEventListener("submit", (e) => this.handleSubmit(e));
+          this.input.addEventListener("input", () => this.handleInput());
+          this.input.addEventListener("keydown", (e) => this.handleKeydown(e));
+        }
+
+        handleSubmit(e) {
+          e.preventDefault();
+          this.sendMessage();
+        }
+
+        handleInput() {
+          const hasText = this.input.value.trim().length > 0;
+          this.submit.disabled = !hasText;
+        }
+
+        handleKeydown(e) {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+          }
+        }
+
+        sendMessage() {
+          const message = this.input.value.trim();
+          if (message) {
+            console.log("メッセージ送信:", message);
+            // 実際のチャット送信処理をここに実装
+            this.clearInput();
+            this.showConfirmation();
+          }
+        }
+
+        clearInput() {
+          this.input.value = "";
+          this.submit.disabled = true;
+        }
+
+        showConfirmation() {
+          // 簡単な送信確認
+          const originalPlaceholder = this.input.placeholder;
+          this.input.placeholder = "メッセージを送信しました...";
+          setTimeout(() => {
+            this.input.placeholder = originalPlaceholder;
+          }, 2000);
+        }
+      }
+
+      // アプリケーション初期化
+      document.addEventListener("DOMContentLoaded", () => {
+        new SidebarController(sidebar, sidebarToggle);
+        new ChatController(chatForm, chatInput, chatSubmit);
+      });
+    </script>
+  </body>
+</html>

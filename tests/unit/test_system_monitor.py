@@ -303,7 +303,7 @@ class TestSystemMonitor:
         # 履歴制限テスト
         monitor.max_history_size = 2
         for i in range(3):
-            monitor.metrics_history.append(system_metrics)
+            monitor._add_to_history(system_metrics)
         
         # 最大サイズを超えないことを確認
         assert len(monitor.metrics_history) <= monitor.max_history_size

@@ -1,0 +1,74 @@
+# Constrained, known-good versions to avoid pip resolution backtracking
+# Install with: pip install -r requirements.txt -c constraints.txt
+
+# Core and agents
+autogen-agentchat==0.7.4
+autogen-core==0.7.4
+transformers==4.56.0
+peft==0.17.1
+accelerate==1.10.1
+bitsandbytes==0.47.0
+
+datasets==4.0.0
+evaluate==0.4.5
+
+# Local LLM and vector DB
+ollama==0.5.3
+chromadb==1.0.20
+chroma-hnswlib==0.7.6
+sentence-transformers==5.1.0
+
+# Web/UI
+fastapi==0.104.1
+starlette==0.27.0
+streamlit==1.49.1
+typer==0.17.3
+uvicorn==0.24.0
+websockets==15.0.1
+
+# DB/ORM
+SQLAlchemy==2.0.23
+aiosqlite==0.21.0
+
+# Monitoring
+psutil==7.0.0
+nvidia-ml-py==13.580.65
+prometheus-client==0.22.1
+grafana-api==1.0.3
+
+# Logging/Config
+loguru==0.7.2
+pydantic==2.11.7
+pydantic-core==2.33.2
+pydantic-settings==2.1.0
+PyYAML==6.0.2
+
+# Sci/vis
+numpy==1.26.4
+pandas==2.3.2
+matplotlib==3.10.6
+plotly==6.3.0
+
+# HTTP/async
+aiohttp==3.9.1
+httpx==0.28.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==6.2.1
+
+# Dev tools
+black==23.11.0
+flake8==7.3.0
+mypy==1.17.1
+
+# Docs
+mkdocs==1.6.1
+mkdocs-material==9.6.18
+
+# Containers
+docker==7.1.0
+# docker-compose 1.x is Python-only; pin to latest 1.29.x
+docker-compose==1.29.2
+

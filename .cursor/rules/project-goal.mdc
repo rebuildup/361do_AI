@@ -1,0 +1,19 @@
+---
+description: The project's ultimate goal
+globs: ["**/*.css", "**/*.py"]
+alwaysApply: true
+---
+
+・A system where conversations continue indefinitely without clearing sessions
+・Agents rewrite their own custom prompts
+・Agents manipulate their own tuning data
+・Conversations continue in the same session regardless of where the agent is launched
+・Inference capabilities similar to Deepseek
+・Agent Function: Web Search
+・Agent function: Command execution
+・Agent function: File modification
+・Agent function: MCP usage
+・SAKANA AI's AI hybrid evolution system
+・System where agents establish their own reward structures
+
+All of the above conditions must be achievable via natural language Japanese instructions from the WebUI.

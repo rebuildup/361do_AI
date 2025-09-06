@@ -1,0 +1,15 @@
+---
+description: Basic rules common to all projects
+globs: ["*"]
+alwaysApply: true
+---
+
+Keep the files placed in the root folder to the absolute minimum.
+
+Use yarn instead of npm
+
+Avoid using drop shadows
+
+Be mindful of grid systems and grid design.
+
+Effectively incorporate components with transparent/semi-transparent areas and panel styles that create a sense of depth.

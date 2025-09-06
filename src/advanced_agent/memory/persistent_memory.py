@@ -6,6 +6,7 @@ LangChain Memory と ChromaDB を統合した永続的記憶システム
 
 import os
 import uuid
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -375,3 +376,94 @@ class LangChainPersistentMemory:
                 self.vector_store.persist()
             except Exception:
                 pass
+
+
+class PersistentMemoryManager:
+    """永続的記憶管理システム - Streamlit UI用ラッパー"""
+    
+    def __init__(self, 
+                 db_path: str = "data/agent_memory.db",
+                 chroma_path: str = "data/chroma_db",
+                 embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+                 summary_model: str = "qwen2:7b-instruct",
+                 ollama_base_url: str = "http://localhost:11434"):
+        
+        self.memory_system = LangChainPersistentMemory(
+            db_path=db_path,
+            chroma_path=chroma_path,
+            embedding_model=embedding_model,
+            summary_model=summary_model,
+            ollama_base_url=ollama_base_url
+        )
+        
+        # セッション管理
+        self.current_session_id: Optional[str] = None
+    
+    async def initialize_session(self, 
+                               session_id: Optional[str] = None,
+                               user_id: Optional[str] = None) -> str:
+        """セッション初期化"""
+        return await self.memory_system.initialize_session(session_id, user_id)
+    
+    async def store_conversation(self,
+                               user_input: str,
+                               agent_response: str,
+                               metadata: Optional[Dict[str, Any]] = None) -> str:
+        """会話の永続化保存"""
+        return await self.memory_system.store_conversation(user_input, agent_response, metadata)
+    
+    async def search_memories(self, 
+                            query: str,
+                            max_results: int = 5,
+                            similarity_threshold: float = 0.7,
+                            session_id: Optional[str] = None) -> Dict[str, Any]:
+        """記憶検索"""
+        try:
+            # 関連コンテキストの検索
+            context = await self.memory_system.retrieve_relevant_context(
+                query=query,
+                session_id=session_id,
+                max_results=max_results
+            )
+            
+            # 結果を整形
+            results = []
+            for conv in context.get("similar_conversations", []):
+                if conv.get("score", 0) >= similarity_threshold:
+                    results.append({
+                        "title": f"会話記録 ({conv.get('metadata', {}).get('timestamp', 'N/A')})",
+                        "content": conv.get("content", ""),
+                        "similarity": conv.get("score", 0),
+                        "created_at": conv.get("metadata", {}).get("timestamp", ""),
+                        "type": "conversation"
+                    })
+            
+            return {
+                "results": results,
+                "total_found": len(results),
+                "query": query,
+                "session_summary": context.get("session_summary", "")
+            }
+            
+        except Exception as e:
+            logging.error(f"記憶検索エラー: {e}")
+            return {
+                "results": [],
+                "total_found": 0,
+                "error": str(e)
+            }
+    
+    async def get_memory_statistics(self) -> Dict[str, Any]:
+        """記憶システムの統計情報"""
+        return self.memory_system.get_memory_statistics()
+    
+    async def cleanup_old_memories(self, 
+                                 days_threshold: int = 30,
+                                 importance_threshold: float = 0.3) -> int:
+        """古い記憶の自動整理"""
+        return await self.memory_system.cleanup_old_memories(days_threshold, importance_threshold)
+    
+    def close(self):
+        """リソースのクリーンアップ"""
+        if hasattr(self, 'memory_system'):
+            self.memory_system.close()

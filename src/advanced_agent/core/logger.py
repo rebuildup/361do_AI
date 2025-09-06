@@ -140,6 +140,22 @@ class AgentLogger:
             log_dir=str(self.config.get_logs_dir())
         )
     
+    def error(self, message: str) -> None:
+        """エラーログ"""
+        logger.error(message)
+    
+    def warning(self, message: str) -> None:
+        """警告ログ"""
+        logger.warning(message)
+    
+    def info(self, message: str) -> None:
+        """情報ログ"""
+        logger.info(message)
+    
+    def debug(self, message: str) -> None:
+        """デバッグログ"""
+        logger.debug(message)
+    
     def log_system_stats(self, stats: Dict[str, Any]) -> None:
         """システム統計ログ"""
         logger.bind(

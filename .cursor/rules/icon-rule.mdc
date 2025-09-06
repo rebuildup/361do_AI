@@ -1,0 +1,9 @@
+---
+description: Rules Regarding Icons
+globs: ["**/*.css", "**/*.py"]
+alwaysApply: true
+---
+
+Do not use emojis for icons
+Use Lucide icons for icons
+If Lucide icons cannot be used or no suitable Lucide icons exist, use Google Fonts theme icons

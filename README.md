@@ -1,200 +1,233 @@
-# Advanced Self-Learning AI Agent
+# 自己学習 AI エージェント (Self-Learning AI Agent)
 
-## 🚀 概要
+RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェントです。
 
-RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェントシステムです。**オープンソースライブラリを最大限活用**し、LangChain、AutoGen、HuggingFace、ChromaDB などの成熟したフレームワークを統合して、オリジナルコードを最小限に抑えた安定性の高いシステムを実現します。
+## 🚀 クイックスタート
 
-## ✨ 主要機能
+### 1. 依存関係のインストール
 
-- **🧠 LangChain + Ollama 推論エンジン**: ReAct Agent による Chain-of-Thought 推論
-- **🧬 AutoGen 進化的学習システム**: マルチエージェント協調による継続的改善
-- **💾 LangChain + ChromaDB 記憶システム**: 永続的記憶と自動コンテキスト継続
-- **⚡ HuggingFace 最適化**: Accelerate + BitsAndBytes による効率的メモリ管理
-- **🔄 Prometheus + Grafana 監視**: リアルタイム性能監視と自動最適化
-- **🌐 FastAPI + Streamlit UI**: 高応答性インターフェースと可視化
+```bash
+# 仮想環境の作成とアクティベート
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# 依存関係のインストール
+pip install -r requirements.txt
+```
+
+### 2. Ollama のセットアップ
+
+```bash
+# Ollamaのインストール（未インストールの場合）
+# https://ollama.ai/ からダウンロード
+
+# モデルのダウンロード
+ollama pull qwen2:7b-instruct
+```
+
+### 3. アプリケーションの起動
+
+```bash
+# デフォルトUI（Streamlit）で起動
+python main.py
+
+# テストモード
+python main.py --test
+
+# ヘルプ表示
+python main.py --help
+```
 
 ## 📁 プロジェクト構造
 
 ```
-.
+self-learning-ai-agent/
+├── main.py                          # メインエントリーポイント
+├── requirements.txt                 # 依存関係
+├── config/
+│   └── agent_config.yaml           # エージェント設定
 ├── src/
-│   └── advanced_agent/          # メインエージェントシステム
-│       ├── core/                # LangChain + Ollama 統合
-│       ├── memory/              # ChromaDB + SQLAlchemy 記憶システム
-│       ├── learning/            # AutoGen + PEFT 進化学習
-│       ├── monitoring/          # Prometheus + PSUtil 監視
-│       └── interfaces/          # FastAPI + Streamlit + Typer
-├── config/                      # 設定ファイル
-│   ├── system.yaml             # システム設定
-│   ├── advanced_agent.yaml     # エージェント設定
-│   ├── .env                    # 環境変数
-│   └── gpu_config.env          # GPU 最適化設定
-├── data/                       # ChromaDB + SQLite データベース
-├── logs/                       # Loguru ログファイル
-├── docs/                       # MkDocs ドキュメント
-└── tests/                      # Pytest テストスイート
-    ├── unit/                   # 単体テスト
-    ├── integration/            # 統合テスト
-    └── performance/            # 性能テスト
+│   └── advanced_agent/
+│       ├── config/                 # 設定管理
+│       ├── database/               # データベース層
+│       ├── reasoning/              # 推論エンジン
+│       ├── memory/                 # 記憶システム
+│       ├── interfaces/             # UI層
+│       ├── monitoring/             # 監視システム
+│       └── ...
+├── data/                           # データストレージ
+├── tests/                          # テスト
+└── docs/                           # ドキュメント
 ```
 
-## 🚀 クイックスタート
+## 🎯 主要機能
 
-### 1. 環境準備
+### ✅ 実装済み機能
+
+- **永続セッション管理**: SQLAlchemy + LangChain 統合
+- **データベーススキーマ**: 自己学習 AI エージェント用の包括的データモデル
+- **設定管理システム**: Pydantic 設定と YAML 設定ファイル
+- **推論エンジン**: Ollama 統合、Chain-of-Thought 推論
+- **品質評価システム**: 8 次元の包括的な品質評価
+- **プロンプトテンプレート管理**: 7 種類のテンプレート
+- **Web UI**: Streamlit ベースのインターフェース
+- **自然言語対話**: 完全に動作するチャット機能
+
+### 🔄 推論プロセス
+
+1. **質問理解**: ユーザーの質問を解析
+2. **知識検索**: 関連する知識を検索
+3. **段階的推論**: Chain-of-Thought 推論を実行
+4. **品質評価**: 8 次元での品質評価
+5. **回答生成**: 最適化された回答を生成
+
+### 📊 品質評価指標
+
+- **正確性 (Accuracy)**: 回答の正確性
+- **完全性 (Completeness)**: 回答の完全性
+- **明確性 (Clarity)**: 回答の明確性
+- **論理的一貫性 (Logical Consistency)**: 論理的な一貫性
+- **有用性 (Usefulness)**: 回答の有用性
+- **効率性 (Efficiency)**: 処理効率
+- **創造性 (Creativity)**: 創造性
+- **安全性 (Safety)**: 安全性
+
+## 🛠️ 使用方法
+
+### コマンドラインオプション
 
 ```bash
-# 1. リポジトリのクローン
-git clone <repository-url>
-cd advanced-self-learning-agent
+python main.py [オプション]
 
-# 2. Python仮想環境の作成
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
-
-# 3. 依存関係のインストール
-pip install -r requirements.txt
-
-# 4. Ollama のセットアップ
-# https://ollama.ai/ からダウンロード・インストール
-ollama pull deepseek-r1:7b
-ollama pull qwen2.5:7b-instruct-q4_k_m
-ollama pull qwen2:1.5b-instruct-q4_k_m
+オプション:
+  --ui {streamlit,fastapi}  UIの選択 (デフォルト: streamlit)
+  --test                    テストモードで起動
+  --config CONFIG           設定ファイルのパス
+  --port PORT               ポート番号
+  --host HOST               ホストアドレス (デフォルト: localhost)
+  --help                    ヘルプ表示
 ```
 
-### 2. システム起動
+### 使用例
 
 ```bash
-# Web UI での使用（推奨）
-streamlit run src/advanced_agent/interfaces/streamlit_app.py
-# ブラウザで http://localhost:8501 にアクセス
+# Streamlit UIで起動
+python main.py --ui streamlit
 
-# API サーバーでの使用
-python -m src.advanced_agent.interfaces.fastapi_gateway
-# API ドキュメント: http://localhost:8000/docs
+# FastAPI UIで起動
+python main.py --ui fastapi --port 8000
 
-# CLI での基本テスト
-python -m src.advanced_agent.reasoning.demo
+# テストモード
+python main.py --test
+
+# カスタム設定で起動
+python main.py --config config/custom_config.yaml
 ```
-
-### 3. 基本的な使用例
-
-```python
-# Python クライアントでの使用
-import asyncio
-from src.advanced_agent.reasoning.basic_engine import BasicReasoningEngine
-
-async def chat_example():
-    engine = BasicReasoningEngine()
-
-    # 基本的な推論
-    response = await engine.reason(
-        "Pythonでクイックソートを実装してください"
-    )
-
-    print(f"応答: {response.content}")
-    print(f"推論ステップ: {response.reasoning_steps}")
-
-# 実行
-asyncio.run(chat_example())
-```
-
-## ⚙️ システム要件
-
-- **GPU**: NVIDIA RTX 4050 (6GB VRAM) 以上
-- **RAM**: 32GB 推奨
-- **CPU**: Intel i7-13700H 相当以上
-- **Python**: 3.11+
-- **CUDA**: 12.0+
-- **Ollama**: 最新版
-
-## 🔧 オープンソース技術スタック
-
-- **🤖 AI フレームワーク**: LangChain, AutoGen, HuggingFace Transformers
-- **💾 データベース**: ChromaDB, SQLAlchemy, SQLite
-- **🌐 Web フレームワーク**: FastAPI, Streamlit, Typer
-- **📊 監視**: Prometheus, Grafana, PSUtil, NVIDIA-ML
-- **🧪 テスト**: Pytest, HuggingFace Evaluate
-- **📝 ドキュメント**: MkDocs, MkDocs Material
 
 ## 🔧 設定
 
-### HuggingFace Accelerate + BitsAndBytes 最適化
+### 設定ファイル (config/agent_config.yaml)
 
 ```yaml
-# config/system.yaml
-gpu:
-  max_vram_gb: 5.0
-  quantization_levels: [8, 4, 3]
-  temperature_threshold: 80
+# エージェント基本設定
+name: "SelfLearningAgent"
+version: "1.0.0"
+
+# Ollama設定
+ollama:
+  base_url: "http://localhost:11434"
+  model: "qwen2:7b-instruct"
+  temperature: 0.7
+
+# データベース設定
+database:
+  db_path: "data/self_learning_agent.db"
+  echo: false
+
+# 学習設定
+learning:
+  enable_self_learning: true
+  learning_rate: 0.01
+  batch_size: 32
 ```
-
-### LangChain + ChromaDB 記憶システム
-
-```yaml
-# config/system.yaml
-persistent_memory:
-  db_path: "data/chroma_db"
-  max_short_term_items: 1000
-  max_long_term_items: 10000
-  importance_threshold: 0.7
-```
-
-## 📊 監視とメトリクス
-
-- **GPU 使用率**: リアルタイム監視
-- **VRAM 使用量**: 自動最適化
-- **推論速度**: 2 秒以内の応答目標
-- **記憶効率**: 重要度ベースの自動整理
 
 ## 🧪 テスト
 
 ```bash
-# Pytest 単体テスト
-python -m pytest tests/unit/
-
-# LangChain 統合テスト
-python -m pytest tests/integration/
-
-# HuggingFace Evaluate 性能テスト
-python -m pytest tests/performance/
-
 # 全テスト実行
-python -m pytest tests/ --cov=src/advanced_agent
+python -m pytest tests/
+
+# 特定のテスト実行
+python -m pytest tests/unit/test_reasoning.py
+
+# カバレッジ付きテスト
+python -m pytest --cov=src tests/
 ```
+
+## 📈 パフォーマンス
+
+- **推論速度**: 1-3 秒/質問
+- **メモリ使用量**: 6GB VRAM 以下
+- **品質スコア**: 0.6-0.8（8 次元評価）
+- **同時接続**: 複数セッション対応
+
+## 🐛 トラブルシューティング
+
+### よくある問題
+
+1. **Ollama 接続エラー**
+
+   ```bash
+   # Ollamaが起動しているか確認
+   ollama list
+
+   # モデルがダウンロードされているか確認
+   ollama pull qwen2:7b-instruct
+   ```
+
+2. **依存関係エラー**
+
+   ```bash
+   # 仮想環境を再作成
+   rm -rf .venv
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **データベースエラー**
+   ```bash
+   # データベースファイルを削除して再作成
+   rm data/*.db
+   python main.py --test
+   ```
 
 ## 📚 ドキュメント
 
-### 基本ガイド
-
-- [📦 インストールガイド](docs/INSTALLATION.md) - システムのセットアップ手順
-- [⚙️ 設定ガイド](docs/CONFIGURATION.md) - 設定ファイルの詳細説明
-- [🚀 使用方法ガイド](docs/USAGE.md) - 基本的な使用方法とベストプラクティス
-
-### 技術リファレンス
-
-- [🔌 API リファレンス](docs/API_REFERENCE.md) - REST API の詳細仕様
-- [🏗️ アーキテクチャ](docs/ARCHITECTURE.md) - システム設計の詳細
-- [🔧 トラブルシューティング](docs/TROUBLESHOOTING.md) - 問題解決ガイド
+- [アーキテクチャ](docs/ARCHITECTURE.md)
+- [API リファレンス](docs/API_REFERENCE.md)
+- [設定ガイド](docs/CONFIGURATION.md)
+- [インストールガイド](docs/INSTALLATION.md)
+- [使用方法](docs/USAGE.md)
+- [トラブルシューティング](docs/TROUBLESHOOTING.md)
 
 ## 🤝 貢献
 
-プルリクエストやイシューの報告を歓迎します。詳細は [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
+1. リポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
 
 ## 📄 ライセンス
 
-このプロジェクトは MIT ライセンスの下で公開されています。
+このプロジェクトは MIT ライセンスの下で公開されています。詳細は[LICENSE](LICENSE)ファイルを参照してください。
 
-## 🌟 オープンソース統合の利点
+## 🙏 謝辞
 
-- **⚡ 開発効率**: 成熟したライブラリの活用により開発時間を大幅短縮
-- **🛡️ 安定性**: 実績のあるオープンソースプロジェクトによる高い信頼性
-- **🤝 コミュニティサポート**: 豊富なドキュメントとコミュニティサポート
-- **🔧 拡張性**: 標準的なインターフェースによる容易な機能拡張
-- **💰 保守性**: オリジナルコード最小化による保守コスト削減
-
----
-
-**🚀 オープンソースの力で RTX 4050 最適化 AI エージェントを体験しよう！**
+- [Ollama](https://ollama.ai/) - ローカル LLM 実行環境
+- [LangChain](https://langchain.com/) - LLM アプリケーションフレームワーク
+- [Streamlit](https://streamlit.io/) - Web アプリケーションフレームワーク
+- [SQLAlchemy](https://www.sqlalchemy.org/) - ORM
+- [ChromaDB](https://www.trychroma.com/) - ベクトルデータベース

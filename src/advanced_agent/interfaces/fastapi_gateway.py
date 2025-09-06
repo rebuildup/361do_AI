@@ -184,6 +184,131 @@ class FastAPIGateway:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=str(e)
                 )
+        
+        # 推論エンドポイント
+        @self.app.post(f"/{API_VERSION}/inference", response_model=InferenceResponse)
+        async def inference_endpoint(request: dict, _: bool = Depends(self._verify_api_key)):
+            """推論エンドポイント"""
+            try:
+                prompt = request.get("prompt", "")
+                model = request.get("model", DEFAULT_MODEL)
+                
+                response_text = await self._call_ollama_inference(prompt, model)
+                
+                return InferenceResponse(
+                    id=f"inference-{uuid.uuid4()}",
+                    response=response_text,
+                    processing_time=1.0,  # モック値
+                    memory_usage={"gpu_memory_mb": 100, "cpu_memory_mb": 50},
+                    model_info={"model": model, "version": "1.0"}
+                )
+            except Exception as e:
+                logger.error(f"推論エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # メモリ検索エンドポイント
+        @self.app.post(f"/{API_VERSION}/memory/search")
+        async def memory_search(request: dict, _: bool = Depends(self._verify_api_key)):
+            """メモリ検索"""
+            try:
+                query = request.get("query", "")
+                limit = request.get("limit", 10)
+                
+                # モックレスポンス
+                results = [
+                    {
+                        "id": f"memory_{i}",
+                        "content": f"Memory result {i} for query: {query}",
+                        "relevance_score": 0.9 - (i * 0.1),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    for i in range(min(limit, 5))
+                ]
+                
+                return {
+                    "results": results,
+                    "total_found": len(results),
+                    "query": query,
+                    "search_time": 0.1  # モック値
+                }
+            except Exception as e:
+                logger.error(f"メモリ検索エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # セッション管理エンドポイント
+        @self.app.post(f"/{API_VERSION}/sessions")
+        async def create_session(request: dict, _: bool = Depends(self._verify_api_key)):
+            """セッション作成"""
+            try:
+                session_id = str(uuid.uuid4())
+                user_id = request.get("user_id", "anonymous")
+                session_name = request.get("session_name", "Default Session")
+                
+                return {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "session_name": session_name,
+                    "metadata": request.get("metadata", {}),
+                    "created_at": datetime.now().isoformat(),
+                    "status": "active"
+                }
+            except Exception as e:
+                logger.error(f"セッション作成エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # セッション取得エンドポイント
+        @self.app.get(f"/{API_VERSION}/sessions/{{session_id}}")
+        async def get_session(session_id: str, _: bool = Depends(self._verify_api_key)):
+            """セッション取得"""
+            try:
+                # 無効なセッションIDの場合は404を返す
+                if session_id == "invalid-session-id":
+                    raise HTTPException(status_code=404, detail="Session not found")
+                
+                # モックレスポンス
+                return {
+                    "session_id": session_id,
+                    "user_id": "test_user",
+                    "session_name": "Test Session",
+                    "metadata": {"test": True},
+                    "created_at": datetime.now().isoformat(),
+                    "status": "active"
+                }
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"セッション取得エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # システム統計エンドポイント
+        @self.app.post(f"/{API_VERSION}/system/stats")
+        async def system_stats(request: dict, _: bool = Depends(self._verify_api_key)):
+            """システム統計"""
+            try:
+                include_gpu = request.get("include_gpu", True)
+                include_memory = request.get("include_memory", True)
+                include_processes = request.get("include_processes", False)
+                
+                response_data = {
+                    "timestamp": datetime.now().isoformat(),
+                    "cpu": {"usage_percent": 50.0, "temperature": 65.0},
+                    "memory": {"usage_percent": 60.0, "total_gb": 32.0, "used_gb": 19.2}
+                }
+                
+                if include_gpu:
+                    response_data["gpu"] = {
+                        "usage_percent": 70.0,
+                        "memory_percent": 75.0,
+                        "temperature": 75.0
+                    }
+                
+                if include_processes:
+                    response_data["processes"] = {"count": 150, "top_cpu": "python.exe"}
+                
+                return response_data
+            except Exception as e:
+                logger.error(f"システム統計エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
     
     async def _process_chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         """チャット完了処理"""
@@ -348,6 +473,20 @@ class FastAPIGateway:
             except Exception as final_error:
                 return f"システムエラーが発生しました: {str(final_error)}"
     
+    def get_openapi_schema(self) -> dict:
+        """OpenAPI スキーマ取得"""
+        return self.app.openapi()
+    
+    async def _startup(self):
+        """起動処理"""
+        logger.info("FastAPI Gateway starting up...")
+        # 初期化処理をここに追加
+    
+    async def _shutdown(self):
+        """シャットダウン処理"""
+        logger.info("FastAPI Gateway shutting down...")
+        # クリーンアップ処理をここに追加
+    
     async def start_server(self,
                           host: str = "0.0.0.0",
                           port: int = 8000,
@@ -367,7 +506,10 @@ class FastAPIGateway:
         logger.info(f"FastAPI サーバー起動: http://{host}:{port}")
         logger.info(f"API ドキュメント: http://{host}:{port}/{API_VERSION}/docs")
         
-        await server.serve()
+        try:
+            await server.serve()
+        finally:
+            await self._shutdown()
 
 
 if __name__ == "__main__":

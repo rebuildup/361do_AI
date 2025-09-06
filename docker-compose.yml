@@ -1,0 +1,268 @@
+# Self-Learning AI Agent Docker Compose Configuration
+# 自己学習AIエージェント用Docker Compose設定
+
+version: "3.8"
+
+services:
+  # メインアプリケーションサービス
+  ai-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: self-learning-ai-agent
+    restart: unless-stopped
+    ports:
+      - "8000:8000" # FastAPI
+      - "8501:8501" # Streamlit
+      - "9090:9090" # Prometheus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./config:/app/config
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+      - prometheus
+    networks:
+      - ai-agent-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Redis キャッシュサービス
+  redis:
+    image: redis:7-alpine
+    container_name: ai-agent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL データベースサービス
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-agent-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=ai_agent
+      - POSTGRES_USER=ai_agent
+      - POSTGRES_PASSWORD=ai_agent_password
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_agent -d ai_agent"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus 監視サービス
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ai-agent-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana ダッシュボードサービス
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-agent-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - ai-agent-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx リバースプロキシサービス
+  nginx:
+    image: nginx:alpine
+    container_name: ai-agent-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/ssl:/etc/nginx/ssl
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - ai-agent
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ログ集約サービス
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: ai-agent-elasticsearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test:
+        ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Kibana ログ可視化サービス
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: ai-agent-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # バックアップサービス
+  backup:
+    image: postgres:15-alpine
+    container_name: ai-agent-backup
+    restart: "no"
+    volumes:
+      - ./backups:/backups
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=ai_agent
+      - POSTGRES_USER=ai_agent
+      - POSTGRES_PASSWORD=ai_agent_password
+    networks:
+      - ai-agent-network
+    command: >
+      sh -c "
+        while true; do
+          pg_dump -h postgres -U ai_agent ai_agent > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+          find /backups -name 'backup_*.sql' -mtime +7 -delete
+          sleep 86400
+        done
+      "
+    depends_on:
+      - postgres
+
+# ネットワーク設定
+networks:
+  ai-agent-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ボリューム設定
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  elasticsearch_data:
+    driver: local

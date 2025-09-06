@@ -1,28 +1,22 @@
+[server]
+address = "localhost"
+port = 8501
+enableCORS = true
+enableXsrfProtection = true
+enableWebsocketCompression = true
+maxUploadSize = 200
+maxMessageSize = 200
+
+[browser]
+serverAddress = "localhost"
+gatherUsageStats = false
+
 [global]
 # Streamlit の設定
 
 # 開発モード（新バージョンでは developmentMode は削除）
 # developmentMode = false
 
-[server]
-# サーバー設定
-# port = 8501  # developmentMode が true の場合は port 設定を削除
-address = "0.0.0.0"
-
-# CORS 設定
-enableCORS = true
-enableXsrfProtection = true
-
-# WebSocket 設定
-enableWebsocketCompression = true
-
-# アップロード設定
-maxUploadSize = 200
-maxMessageSize = 200
-
-[browser]
-# ブラウザ設定
-gatherUsageStats = false
 
 [theme]
 # テーマ設定

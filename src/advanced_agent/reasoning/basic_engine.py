@@ -16,7 +16,7 @@ from langchain_core.callbacks import BaseCallbackHandler, CallbackManagerForLLMR
 from langchain_core.outputs import LLMResult
 from langchain.schema import Generation
 
-from ..inference.ollama_client import OllamaClient, InferenceRequest, InferenceResponse
+from ..reasoning.ollama_client import OllamaClient
 from ..core.config import get_config
 from ..core.logger import get_logger
 
@@ -143,8 +143,8 @@ class BasicReasoningEngine:
             component="basic_reasoning_engine",
             version="1.0.0",
             config_summary={
-                "primary_model": self.ollama_client.primary_model,
-                "fallback_models": len(self.ollama_client.fallback_models),
+                "primary_model": self.ollama_client.model if self.ollama_client else "unknown",
+                "fallback_models": 0,
                 "template_count": 0
             }
         )
@@ -156,11 +156,11 @@ class BasicReasoningEngine:
             await self._register_default_templates()
             
             # Ollama接続確認
-            if not self.ollama_client.primary_llm:
+            if not self.ollama_client:
                 self.logger.log_alert(
                     alert_type="initialization_failed",
                     severity="ERROR",
-                    message="Primary LLM not available"
+                    message="Ollama client not available"
                 )
                 return False
             
@@ -170,7 +170,7 @@ class BasicReasoningEngine:
                 config_summary={
                     "prompt_templates": len(self.prompt_templates),
                     "chat_templates": len(self.chat_templates),
-                    "primary_model": self.ollama_client.primary_model
+                    "primary_model": self.ollama_client.model if self.ollama_client else "unknown"
                 }
             )
             
@@ -346,31 +346,30 @@ class BasicReasoningEngine:
             # LLM実行
             start_time = time.time()
             
-            llm = self.ollama_client.primary_llm
-            if not llm:
-                raise RuntimeError("Primary LLM not available")
-            
-            # 推論実行
-            result = await asyncio.to_thread(
-                llm.invoke,
-                final_prompt,
-                config={"callbacks": [callback_handler]}
+            # 推論実行（OllamaClientを使用）
+            result = await self.ollama_client.generate(
+                prompt=final_prompt,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens
             )
+            
+            # レスポンステキストを取得
+            response_text = result.content if hasattr(result, 'content') else str(result)
             
             processing_time = time.time() - start_time
             
             # レスポンス作成
             response = ReasoningResponse(
                 request_id=request_id,
-                response_text=result,
+                response_text=response_text,
                 processing_time=processing_time,
                 token_count=callback_handler.token_count,
-                model_used=self.ollama_client.primary_model,
+                model_used=self.ollama_client.model if self.ollama_client else "unknown",
                 template_used=template_name,
                 state=ReasoningState.COMPLETED,
                 metadata={
                     "prompt_length": len(final_prompt),
-                    "response_length": len(result),
+                    "response_length": len(response_text),
                     **callback_handler.processing_metrics
                 }
             )

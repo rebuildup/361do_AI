@@ -1,0 +1,11 @@
+---
+description: About Panel Breakpoints
+globs: ["**/*.css", "**/*.py"]
+alwaysApply: true
+---
+
+Main content area: 768px
+Side panel open: 288px
+Side panel closed: 48px
+
+When the screen width falls below 768+288px with the side panel open, it will automatically close.

@@ -354,7 +354,7 @@ class SystemMonitor:
             boot_time = datetime.fromtimestamp(psutil.boot_time())
             uptime = time.time() - psutil.boot_time()
             
-            return SystemMetrics(
+            metrics = SystemMetrics(
                 cpu=cpu_metrics,
                 memory=memory_metrics,
                 gpu=gpu_metrics,
@@ -364,6 +364,11 @@ class SystemMonitor:
                 boot_time=boot_time,
                 uptime_seconds=uptime
             )
+            
+            # 履歴に追加（サイズ制限付き）
+            self._add_to_history(metrics)
+            
+            return metrics
             
         except Exception as e:
             logger.error(f"Failed to get system metrics: {e}")
@@ -514,10 +519,58 @@ class SystemMonitor:
         """最新メトリクス取得"""
         return self.metrics_history[-1] if self.metrics_history else None
     
+    async def get_system_stats(self) -> Dict[str, Any]:
+        """システム統計情報取得（SelfLearningAgent用）"""
+        metrics = self.get_system_metrics()
+        
+        stats = {
+            "cpu": {
+                "usage_percent": metrics.cpu.usage_percent,
+                "core_count": metrics.cpu.core_count,
+                "frequency_mhz": metrics.cpu.frequency_mhz
+            },
+            "memory": {
+                "usage_percent": metrics.memory.usage_percent,
+                "total_gb": metrics.memory.total_gb,
+                "used_gb": metrics.memory.used_gb,
+                "available_gb": metrics.memory.available_gb
+            },
+            "gpu": None,
+            "disk": {
+                "usage_percent": metrics.disk_usage.get("usage_percent", 0.0),
+                "total_gb": metrics.disk_usage.get("total_gb", 0.0),
+                "used_gb": metrics.disk_usage.get("used_gb", 0.0),
+                "free_gb": metrics.disk_usage.get("free_gb", 0.0)
+            },
+            "process_count": metrics.process_count,
+            "uptime_seconds": metrics.uptime_seconds,
+            "timestamp": metrics.timestamp.isoformat()
+        }
+        
+        if metrics.gpu:
+            stats["gpu"] = {
+                "utilization_percent": metrics.gpu.utilization_percent,
+                "memory_percent": metrics.gpu.memory_percent,
+                "memory_used_mb": metrics.gpu.memory_used_mb,
+                "memory_total_mb": metrics.gpu.memory_total_mb,
+                "temperature_celsius": metrics.gpu.temperature_celsius,
+                "power_usage_watts": metrics.gpu.power_usage_watts
+            }
+        
+        return stats
+    
     def clear_history(self):
         """履歴クリア"""
         self.metrics_history.clear()
         logger.info("Metrics history cleared")
+    
+    def _add_to_history(self, metrics: SystemMetrics):
+        """履歴に追加（サイズ制限付き）"""
+        self.metrics_history.append(metrics)
+        
+        # 最大サイズを超えた場合は古いものを削除
+        if len(self.metrics_history) > self.max_history_size:
+            self.metrics_history = self.metrics_history[-self.max_history_size:]
     
     def get_gpu_count(self) -> int:
         """GPU数取得"""

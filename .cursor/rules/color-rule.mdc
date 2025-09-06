@@ -1,0 +1,8 @@
+---
+description: Regarding colors, adhere to Streamlit's default color theme.
+globs: ["**/*.css", "**/*.py"]
+alwaysApply: true
+---
+
+Regarding colors, follow Streamlit's default color theme.
+The base style should be monochrome.
