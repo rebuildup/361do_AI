@@ -1,0 +1,25 @@
+# Development Dockerfile for React Frontend
+# React フロントエンド開発用 Dockerfile
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies for development
+RUN apk add --no-cache git
+
+# Copy package files
+COPY package.json yarn.lock ./
+
+# Install all dependencies (including dev dependencies)
+RUN yarn install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Expose development server port
+EXPOSE 3000
+
+# Start development server with hot reload
+CMD ["yarn", "dev", "--host", "0.0.0.0", "--port", "3000"]

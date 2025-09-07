@@ -48,31 +48,38 @@ class MemoryCleaner:
             duplicate_groups = []
             processed_ids = set()
             
+            # Precompute embeddings for all memories
+            embeddings = {}
+            for memory in memories:
+                content = memory.get('content', '')
+                if len(content) >= self.cleanup_rules["min_content_length"]:
+                    embeddings[memory.get('id')] = self.embedding_manager.encode_text(content)
+            
             for i, memory1 in enumerate(memories):
                 if memory1.get('id') in processed_ids:
                     continue
                 
-                content1 = memory1.get('content', '')
-                if len(content1) < self.cleanup_rules["min_content_length"]:
+                memory1_id = memory1.get('id')
+                if memory1_id not in embeddings:
                     continue
                 
-                embedding1 = self.embedding_manager.encode_text(content1)
-                duplicate_group = [memory1.get('id')]
+                embedding1 = embeddings[memory1_id]
+                duplicate_group = [memory1_id]
                 
-                for j, memory2 in enumerate(memories[i+1:], i+1):
+                for _j, memory2 in enumerate(memories[i+1:], i+1):
                     if memory2.get('id') in processed_ids:
                         continue
                     
-                    content2 = memory2.get('content', '')
-                    if len(content2) < self.cleanup_rules["min_content_length"]:
+                    memory2_id = memory2.get('id')
+                    if memory2_id not in embeddings:
                         continue
                     
-                    embedding2 = self.embedding_manager.encode_text(content2)
+                    embedding2 = embeddings[memory2_id]
                     similarity = self.embedding_manager.calculate_similarity(embedding1, embedding2)
                     
                     if similarity >= self.cleanup_rules["duplicate_threshold"]:
-                        duplicate_group.append(memory2.get('id'))
-                        processed_ids.add(memory2.get('id'))
+                        duplicate_group.append(memory2_id)
+                        processed_ids.add(memory2_id)
                 
                 if len(duplicate_group) > 1:
                     duplicate_groups.append(duplicate_group)
@@ -91,7 +98,9 @@ class MemoryCleaner:
         
         try:
             old_memory_ids = []
-            cutoff_date = datetime.now() - timedelta(days=self.cleanup_rules["age_threshold_days"])
+            # UTC aware cutoff date
+            from datetime import timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.cleanup_rules["age_threshold_days"])
             
             for memory in memories:
                 metadata = memory.get('metadata', {})
@@ -100,11 +109,15 @@ class MemoryCleaner:
                 if timestamp_str:
                     try:
                         timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        # Ensure timestamp is timezone aware
+                        if timestamp.tzinfo is None:
+                            timestamp = timestamp.replace(tzinfo=timezone.utc)
                         if timestamp < cutoff_date:
                             old_memory_ids.append(memory.get('id'))
                     except Exception:
-                        # タイムスタンプ解析エラーの場合は古いとみなす
-                        old_memory_ids.append(memory.get('id'))
+                        # タイムスタンプ解析エラーの場合は削除しない（安全のため）
+                        self.logger.warning(f"Failed to parse timestamp: {timestamp_str}")
+                        continue
             
             return old_memory_ids
             
@@ -140,32 +153,39 @@ class MemoryCleaner:
             similar_groups = []
             processed_ids = set()
             
+            # Precompute embeddings for all memories
+            embeddings = {}
+            for memory in memories:
+                content = memory.get('content', '')
+                if len(content) >= self.cleanup_rules["min_content_length"]:
+                    embeddings[memory.get('id')] = self.embedding_manager.encode_text(content)
+            
             for i, memory1 in enumerate(memories):
                 if memory1.get('id') in processed_ids:
                     continue
                 
-                content1 = memory1.get('content', '')
-                if len(content1) < self.cleanup_rules["min_content_length"]:
+                memory1_id = memory1.get('id')
+                if memory1_id not in embeddings:
                     continue
                 
-                embedding1 = self.embedding_manager.encode_text(content1)
-                similar_group = [memory1.get('id')]
+                embedding1 = embeddings[memory1_id]
+                similar_group = [memory1_id]
                 
-                for j, memory2 in enumerate(memories[i+1:], i+1):
+                for _j, memory2 in enumerate(memories[i+1:], i+1):
                     if memory2.get('id') in processed_ids:
                         continue
                     
-                    content2 = memory2.get('content', '')
-                    if len(content2) < self.cleanup_rules["min_content_length"]:
+                    memory2_id = memory2.get('id')
+                    if memory2_id not in embeddings:
                         continue
                     
-                    embedding2 = self.embedding_manager.encode_text(content2)
+                    embedding2 = embeddings[memory2_id]
                     similarity = self.embedding_manager.calculate_similarity(embedding1, embedding2)
                     
                     # 類似度が高いが重複ではない記憶
                     if (0.7 <= similarity < self.cleanup_rules["duplicate_threshold"]):
-                        similar_group.append(memory2.get('id'))
-                        processed_ids.add(memory2.get('id'))
+                        similar_group.append(memory2_id)
+                        processed_ids.add(memory2_id)
                 
                 if len(similar_group) > self.cleanup_rules["max_similar_memories"]:
                     similar_groups.append(similar_group)

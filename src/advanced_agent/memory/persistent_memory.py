@@ -13,6 +13,8 @@ from pathlib import Path
 
 from langchain.memory import ConversationSummaryBufferMemory
 from langchain_community.vectorstores import Chroma
+import chromadb
+from chromadb.config import Settings
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.llms import Ollama
 from langchain.schema import BaseMessage
@@ -89,11 +91,21 @@ class LangChainPersistentMemory:
             model_kwargs={'device': 'cpu'}  # CPU使用でVRAM節約
         )
         
-        # ChromaDB Vector Store初期化
+        # ChromaDB PersistentClient を明示的に使用（サーバーテナント接続を避ける）
+        self._chroma_client = chromadb.PersistentClient(
+            path=chroma_path,
+            settings=Settings(
+                anonymized_telemetry=False,
+                allow_reset=True
+            )
+        )
+
+        # Chroma VectorStore（LangChain）初期化を PersistentClient 経由で行う
         self.vector_store = Chroma(
-            persist_directory=chroma_path,
+            client=self._chroma_client,
+            collection_name="agent_memory",
             embedding_function=self.embeddings,
-            collection_name="agent_memory"
+            persist_directory=chroma_path
         )
         
         # 要約用LLM（軽量モデル）
@@ -447,32 +459,8 @@ class PersistentMemoryManager:
                                      session_id: Optional[str] = None,
                                      limit: int = 50) -> List[Dict[str, Any]]:
         """会話履歴の取得"""
-        try:
-            target_session_id = session_id or self.current_session_id
-            if not target_session_id:
-                return []
-            
-            with self.SessionLocal() as db:
-                conversations = db.query(ConversationRecord).filter(
-                    ConversationRecord.session_id == target_session_id
-                ).order_by(ConversationRecord.timestamp.desc()).limit(limit).all()
-                
-                history = []
-                for conv in conversations:
-                    history.append({
-                        "id": conv.id,
-                        "user_input": conv.user_input,
-                        "agent_response": conv.agent_response,
-                        "timestamp": conv.timestamp.isoformat() if conv.timestamp else None,
-                        "importance_score": conv.importance_score,
-                        "metadata": conv.extra_metadata
-                    })
-                
-                return history
-                
-        except Exception as e:
-            logging.error(f"会話履歴取得エラー: {e}")
-            return []
+        # Delegate to the underlying memory system
+        return await self.memory_system.get_conversation_history(session_id, limit)
     
     async def search_memories(self, 
                             query: str,
@@ -491,7 +479,7 @@ class PersistentMemoryManager:
             # 結果を整形
             results = []
             for conv in context.get("similar_conversations", []):
-                if conv.get("score", 0) >= similarity_threshold:
+                if conv.get("score", 0) <= similarity_threshold:
                     results.append({
                         "title": f"会話記録 ({conv.get('metadata', {}).get('timestamp', 'N/A')})",
                         "content": conv.get("content", ""),

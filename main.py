@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-自己学習AIエージェント メインエントリーポイント
+自己学習AIエージェント 361do_AI メインエントリーポイント
 
 使用方法:
-    python main.py                    # デフォルトUI起動
+    python main.py                    # デフォルトUI起動（React）
+    python main.py --ui react         # React UI起動
     python main.py --ui streamlit     # Streamlit UI起動
     python main.py --ui fastapi       # FastAPI UI起動
     python main.py --test             # テストモード
@@ -26,7 +27,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用例:
-  python main.py                    # デフォルトUI起動
+  python main.py                    # デフォルトUI起動（React）
+  python main.py --ui react         # React UI起動
   python main.py --ui streamlit     # Streamlit UI起動
   python main.py --ui fastapi       # FastAPI UI起動
   python main.py --test             # テストモード
@@ -36,9 +38,9 @@ def main():
     
     parser.add_argument(
         "--ui",
-        choices=["streamlit", "fastapi"],
-        default="streamlit",
-        help="使用するUI (デフォルト: streamlit)"
+        choices=["react", "streamlit", "fastapi"],
+        default="react",
+        help="使用するUI (デフォルト: react)"
     )
     
     parser.add_argument(
@@ -62,8 +64,8 @@ def main():
     parser.add_argument(
         "--host",
         type=str,
-        default="localhost",
-        help="ホストアドレス (デフォルト: localhost)"
+        default="0.0.0.0",
+        help="ホストアドレス (デフォルト: 0.0.0.0)"
     )
     
     args = parser.parse_args()
@@ -136,10 +138,57 @@ def run_ui_mode(args):
     print(f"🚀 自己学習AIエージェントを起動します...")
     print(f"UI: {args.ui}")
     
-    if args.ui == "streamlit":
-        run_streamlit_ui(args)
-    elif args.ui == "fastapi":
-        run_fastapi_ui(args)
+    # 設定ファイルの読み込み
+    if args.config:
+        print(f"📁 設定ファイル: {args.config}")
+        if not os.path.exists(args.config):
+            print(f"❌ 設定ファイルが見つかりません: {args.config}")
+            sys.exit(1)
+    
+    try:
+        if args.ui == "react":
+            run_react_ui(args)
+        elif args.ui == "streamlit":
+            run_streamlit_ui(args)
+        elif args.ui == "fastapi":
+            run_fastapi_ui(args)
+    except KeyboardInterrupt:
+        print("\n🛑 ユーザーによって停止されました")
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ UI起動中にエラーが発生しました: {e}")
+        sys.exit(1)
+
+def run_react_ui(args):
+    """React UI起動（統合版）"""
+    try:
+        import subprocess
+        import uvicorn
+        from src.advanced_agent.interfaces.fastapi_app import create_app
+        
+        # ポート設定
+        port = args.port or 80
+        
+        print(f"🌐 React AIエージェントWebUIを起動中...")
+        print(f"URL: http://{args.host}:{port}")
+        print("React + FastAPI統合UIで起動します")
+        
+        # FastAPIアプリケーションを作成して起動
+        app = create_app()
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=port,
+            log_level="info"
+        )
+        
+    except ImportError:
+        print("❌ React UI起動失敗: uvicornがインストールされていません")
+        print("pip install uvicorn でインストールしてください")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ React UI起動失敗: {e}")
+        sys.exit(1)
 
 def run_streamlit_ui(args):
     """Streamlit UI起動"""
@@ -149,36 +198,51 @@ def run_streamlit_ui(args):
         # ポート設定
         port = args.port or 8501
         
-        print(f"🌐 新しいAIエージェントWebUIを起動中...")
+        print(f"🌐 Streamlit AIエージェントWebUIを起動中...")
         print(f"URL: http://{args.host}:{port}")
         print("シンプルで美しいUIで起動します")
         
-        # 新しいWebUIを起動
-        cmd = [sys.executable, "-m", "streamlit", "run", "webui.py", "--server.port", str(port), "--server.headless", "true"]
+        # Streamlitを起動（ホストとポートを指定）
+        cmd = [
+            sys.executable, "-m", "streamlit", "run", "webui.py",
+            "--server.port", str(port),
+            "--server.address", args.host,
+            "--server.headless", "true"
+        ]
         subprocess.run(cmd)
         
     except Exception as e:
-        print(f"❌ WebUI起動失敗: {e}")
+        print(f"❌ Streamlit UI起動失敗: {e}")
         sys.exit(1)
 
 def run_fastapi_ui(args):
     """FastAPI UI起動"""
     try:
-        import subprocess
+        import uvicorn
+        from src.advanced_agent.interfaces.fastapi_app import create_app
         
         # ポート設定
         port = args.port or 8000
         
-        print(f"🌐 新しいAIエージェントWebUIを起動中...")
+        print(f"🌐 FastAPI AIエージェントWebUIを起動中...")
         print(f"URL: http://{args.host}:{port}")
-        print("シンプルで美しいUIで起動します")
+        print("FastAPIベースのUIで起動します")
         
-        # 新しいWebUIを起動（Streamlitを使用）
-        cmd = [sys.executable, "-m", "streamlit", "run", "webui.py", "--server.port", str(port), "--server.headless", "true"]
-        subprocess.run(cmd)
+        # FastAPIアプリケーションを作成して起動
+        app = create_app()
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=port,
+            log_level="info"
+        )
         
+    except ImportError:
+        print("❌ FastAPI UI起動失敗: uvicornがインストールされていません")
+        print("pip install uvicorn でインストールしてください")
+        sys.exit(1)
     except Exception as e:
-        print(f"❌ WebUI起動失敗: {e}")
+        print(f"❌ FastAPI UI起動失敗: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

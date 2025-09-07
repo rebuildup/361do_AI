@@ -17,7 +17,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
-from ..core.config import get_config
+from ..config import get_agent_config
 from ..core.logger import get_logger
 
 
@@ -131,13 +131,14 @@ class OllamaClient:
     """LangChain + Ollama 統合クライアント"""
     
     def __init__(self, base_url: Optional[str] = None):
-        self.config = get_config()
+        self.config = get_agent_config()
         self.logger = get_logger()
         
-        self.base_url = base_url or self.config.models.ollama_base_url
-        self.primary_model = self.config.models.primary
-        self.fallback_model = self.config.models.fallback
-        self.emergency_model = self.config.models.emergency
+        self.base_url = base_url or self.config.ollama.base_url
+        self.model = self.config.ollama.model  # BasicReasoningEngine用のmodel属性
+        self.primary_model = self.config.ollama.model
+        self.fallback_model = self.config.ollama.model  # フォールバック用に同じモデルを使用
+        self.emergency_model = self.config.ollama.model  # 緊急時用に同じモデルを使用
         
         # Ollama クライアント初期化
         self.ollama_client = ollama.Client(host=self.base_url)
@@ -217,16 +218,28 @@ class OllamaClient:
             
             self.model_cache.clear()
             
-            for model in models_response.get('models', []):
-                model_name = model['name']
-                size_bytes = model.get('size', 0)
+            # ollama.Client.list()はListResponseオブジェクトを返す
+            models_list = models_response.models if hasattr(models_response, 'models') else []
+            
+            for model in models_list:
+                # モデル名の取得（ollama.Modelオブジェクトの属性）
+                model_name = getattr(model, 'model', '') or getattr(model, 'name', '')
+                if not model_name:
+                    continue
+                    
+                size_bytes = getattr(model, 'size', 0)
                 size_gb = size_bytes / (1024**3) if size_bytes else 0
+                
+                # 詳細情報の取得
+                details = getattr(model, 'details', {})
+                if hasattr(details, '__dict__'):
+                    details = details.__dict__
                 
                 self.model_cache[model_name] = ModelInfo(
                     name=model_name,
                     size_gb=size_gb,
                     status=ModelStatus.AVAILABLE,
-                    parameters=model.get('details', {})
+                    parameters=details
                 )
             
             self.logger.log_system_stats({
@@ -278,6 +291,12 @@ class OllamaClient:
                 fallback_used=False
             )
     
+    async def generate_response(self, prompt: str, model_name: Optional[str] = None) -> str:
+        """簡易テキスト生成（後方互換性のため）"""
+        request = InferenceRequest(prompt=prompt, model_name=model_name)
+        response = await self.generate(request)
+        return response.content
+    
     async def generate(self, request: InferenceRequest) -> InferenceResponse:
         """テキスト生成"""
         start_time = time.time()
@@ -312,14 +331,19 @@ class OllamaClient:
         elif model_name == self.emergency_model and self.emergency_llm:
             return self.emergency_llm
         else:
-            # 動的にLLM作成
-            if model_name in self.model_cache:
+            # 動的にLLM作成（モデルキャッシュにない場合でも作成）
+            try:
                 return Ollama(
                     model=model_name,
                     base_url=self.base_url,
                     temperature=0.1,
                     callbacks=[self.callback_handler]
                 )
+            except Exception as e:
+                self.logger.error(f"Failed to create LLM for model {model_name}: {e}")
+                # フォールバックとしてプライマリモデルを使用
+                if self.primary_llm:
+                    return self.primary_llm
         return None
     
     async def _build_prompt(self, request: InferenceRequest) -> str:
@@ -570,6 +594,10 @@ class OllamaClient:
             health_status["error"] = str(e)
         
         return health_status
+    
+    async def close(self) -> None:
+        """クライアント終了（shutdownのエイリアス）"""
+        await self.shutdown()
     
     async def shutdown(self) -> None:
         """クライアント終了"""

@@ -1,0 +1,60 @@
+# Docker Compose Override for Development
+# 開発用 Docker Compose オーバーライド設定
+
+version: "3.8"
+
+services:
+  # Development overrides for main application
+  ai-agent:
+    build:
+      target: production # Use production stage but with dev settings
+    environment:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - FRONTEND_ENABLED=true
+      - NGINX_ENABLED=false # Disable nginx in development
+    ports:
+      - "3000:3000" # React dev server
+      - "8000:8000" # FastAPI
+      - "8501:8501" # Streamlit
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src
+      - ./frontend/src:/app/frontend/src
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["development"] # Use development mode
+
+  # Development React server (separate container for hot reload)
+  react-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: react-dev-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Anonymous volume for node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_DEBUG_MODE=true
+    networks:
+      - ai-agent-network
+    profiles:
+      - development
+
+  # Disable resource-intensive services in development
+  elasticsearch:
+    profiles:
+      - monitoring
+
+  kibana:
+    profiles:
+      - monitoring
+
+  grafana:
+    profiles:
+      - monitoring

@@ -64,7 +64,7 @@ class MetricBasedOptimizer:
     
     def __init__(self,
                  prometheus_collector: PrometheusMetricsCollector,
-                 auto_optimizer: AutoOptimizer):
+                 auto_optimizer: 'AutoOptimizer'):
         """
         初期化
         

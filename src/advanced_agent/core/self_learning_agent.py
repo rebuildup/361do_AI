@@ -32,7 +32,7 @@ from langchain.schema import BaseMessage
 
 from ..memory.persistent_memory import LangChainPersistentMemory
 from ..reasoning.basic_engine import BasicReasoningEngine, ReasoningRequest, ReasoningResponse
-from ..reasoning.ollama_client import OllamaClient, OllamaConfig
+from ..inference.ollama_client import OllamaClient
 from ..tools.tool_registry import ToolRegistry
 from ..monitoring.system_monitor import SystemMonitor
 from ..core.logger import get_logger
@@ -289,13 +289,17 @@ class SelfLearningAgent:
         
         # Ollamaクライアント初期化
         if self.ollama_client is None:
-            self.ollama_client = OllamaClient(self.config.ollama)
+            self.logger.info("Ollamaクライアントを初期化中...")
+            self.ollama_client = OllamaClient(self.config.ollama.base_url)
             await self.ollama_client.initialize()
+            self.logger.info("Ollamaクライアント初期化完了")
         
         # 推論エンジン初期化
         if self.reasoning_engine is None:
+            self.logger.info("推論エンジンを初期化中...")
             self.reasoning_engine = BasicReasoningEngine(self.ollama_client)
             await self.reasoning_engine.initialize()
+            self.logger.info("推論エンジン初期化完了")
         
         # ツールマネージャー初期化
         if self.tool_manager is None:
@@ -462,6 +466,7 @@ class SelfLearningAgent:
     async def _load_learning_components(self):
         """学習コンポーネントの読み込み"""
         
+        self.logger.info("学習コンポーネントの読み込みを開始...")
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -510,6 +515,8 @@ class SelfLearningAgent:
                 except Exception as e:
                     self.logger.warning(f"プロンプトテンプレートの読み込みに失敗: {e}")
                 
+                self.logger.info("プロンプトテンプレートの読み込み完了")
+                
                 # チューニングデータ読み込み
                 try:
                     cursor.execute("SELECT id, content, data_type, quality_score, usage_count, created_at, tags, metadata FROM tuning_data")
@@ -553,9 +560,13 @@ class SelfLearningAgent:
                         self.tuning_data_pool.append(data)
                 except Exception as e:
                     self.logger.warning(f"チューニングデータの読み込みに失敗: {e}")
+                
+                self.logger.info("チューニングデータの読み込み完了")
                     
         except Exception as e:
             self.logger.warning(f"学習コンポーネントの読み込みに失敗: {e}")
+        
+        self.logger.info("学習コンポーネントの読み込み完了")
     
     async def process_user_input(self, user_input: str) -> Dict[str, Any]:
         """ユーザー入力処理"""

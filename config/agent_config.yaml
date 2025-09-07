@@ -18,7 +18,7 @@ database:
 # Ollama設定
 ollama:
   base_url: "http://localhost:11434"
-  model: "qwen2:7b-instruct"
+  model: "qwen2:1.5b-instruct-q4_k_m"
   temperature: 0.7
   top_p: 0.9
   top_k: 40
@@ -92,10 +92,13 @@ ui:
   streamlit_port: 8501
   fastapi_port: 8000
   websocket_port: 8001
-  host: "localhost"
+  host: "0.0.0.0"
   debug: false
   auto_reload: false
-  cors_origins: ["*"]
+  cors_origins:
+    - "http://localhost"
+    - "http://localhost:3000"
+    # add more allowed origins or use env override
   max_request_size: 10485760 # 10MB
   request_timeout: 30
 

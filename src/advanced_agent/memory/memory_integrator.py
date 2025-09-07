@@ -87,8 +87,9 @@ class MemoryIntegrator:
             full_metadata["importance_score"] = importance_score
             
             # 短期記憶に追加
+            import uuid
             memory_item = {
-                "id": f"short_{datetime.now().timestamp()}_{hash(content) % 10000}",
+                "id": f"short_{uuid.uuid4()}",
                 "content": content,
                 "metadata": full_metadata,
                 "added_at": datetime.now()
@@ -348,13 +349,18 @@ class MemoryIntegrator:
                 "older": 0      # 1ヶ月以上前
             }
             
-            current_time = datetime.now()
+            # UTC aware current time
+            from datetime import timezone
+            current_time = datetime.now(timezone.utc)
             
             for memory in memories:
                 timestamp_str = memory.get("metadata", {}).get("timestamp")
                 if timestamp_str:
                     try:
                         timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        # Ensure timestamp is timezone aware
+                        if timestamp.tzinfo is None:
+                            timestamp = timestamp.replace(tzinfo=timezone.utc)
                         time_diff = current_time - timestamp
                         
                         if time_diff.days == 0:

@@ -120,6 +120,9 @@ class BatchProcessor:
         self.metrics = BatchProcessingMetrics()
         self.batch_results: List[BatchResult] = []
         
+        # 優先度キュー用のシーケンス番号
+        self._sequence_counter = 0
+        
         # 統計
         self.processing_stats = {
             "total_items": 0,
@@ -317,9 +320,10 @@ class BatchProcessor:
         """キューにアイテム追加"""
         try:
             if self.config.enable_priority_queuing:
-                # 優先度付きキュー
+                # 優先度付きキュー（優先度、シーケンス番号、アイテム）
                 priority = -item.priority  # 高い優先度を先に処理
-                self.processing_queue.put((priority, item))
+                self._sequence_counter += 1
+                self.processing_queue.put((priority, self._sequence_counter, item))
             else:
                 self.processing_queue.put(item)
             
@@ -356,8 +360,7 @@ class BatchProcessor:
             
             elif self.config.batch_size_strategy == BatchSizeStrategy.MEMORY_BASED:
                 # メモリベースのバッチサイズ決定
-                memory_usage = self._get_current_memory_usage()
-                memory_percent = (memory_usage / psutil.virtual_memory().total) * 100
+                memory_percent = psutil.virtual_memory().percent
                 
                 if memory_percent > self.config.memory_threshold_percent:
                     return self.config.min_batch_size
@@ -461,21 +464,23 @@ class BatchProcessor:
             chunks = [batch_data[i:i + chunk_size] for i in range(0, len(batch_data), chunk_size)]
             
             # 並列実行
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             tasks = []
-            for chunk in chunks:
+            for i, chunk in enumerate(chunks):
                 task = loop.run_in_executor(self.thread_pool, processing_function, chunk)
-                tasks.append(task)
+                tasks.append((i, task, len(chunk)))
             
             # 結果を待機
-            chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
+            chunk_results = await asyncio.gather(*[task for _, task, _ in tasks], return_exceptions=True)
             
             # 結果を統合
             results = []
-            for chunk_result in chunk_results:
+            for i, chunk_result in enumerate(chunk_results):
                 if isinstance(chunk_result, Exception):
-                    logger.error(f"並列処理エラー: {chunk_result}")
-                    results.extend([None] * len(chunk_result))
+                    logger.error(f"並列処理エラー (チャンク {i}): {chunk_result}")
+                    # チャンクサイズを取得してNoneで埋める
+                    chunk_size = tasks[i][2]
+                    results.extend([None] * chunk_size)
                 else:
                     results.extend(chunk_result)
             
@@ -508,10 +513,11 @@ class BatchProcessor:
             return [None] * len(batch_data)
     
     def _get_current_memory_usage(self) -> float:
-        """現在のメモリ使用量取得（MB）"""
+        """現在のプロセスメモリ使用量取得（MB）"""
         try:
-            memory_info = psutil.virtual_memory()
-            return memory_info.used / 1024 / 1024
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            return memory_info.rss / 1024 / 1024  # RSS (Resident Set Size) in MB
         except Exception as e:
             logger.error(f"メモリ使用量取得エラー: {e}")
             return 0.0
@@ -559,7 +565,7 @@ class BatchProcessor:
                 # キューからアイテムを取得
                 try:
                     if self.config.enable_priority_queuing:
-                        priority, item = self.processing_queue.get(timeout=1.0)
+                        priority, seq, item = self.processing_queue.get(timeout=1.0)
                     else:
                         item = self.processing_queue.get(timeout=1.0)
                     

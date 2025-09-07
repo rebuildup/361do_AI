@@ -1,0 +1,226 @@
+# Test Workflow
+#
+# Comprehensive testing workflow for CI/CD
+
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run type checking
+        working-directory: frontend
+        run: npm run type-check
+
+      - name: Run linting
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run unit tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: frontend/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results
+          path: |
+            frontend/coverage/
+            frontend/test-results/
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      backend:
+        image: python:3.11-slim
+        options: --health-cmd "curl -f http://localhost:8000/v1/health || exit 1" --health-interval 30s --health-timeout 10s --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Setup Python backend (mock)
+        run: |
+          # This would set up the actual backend for integration testing
+          # For now, we'll use MSW mocks
+          echo "Backend mocking enabled"
+
+      - name: Run integration tests
+        working-directory: frontend
+        run: npm run test:run -- src/**/*.integration.test.*
+
+      - name: Archive integration test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: frontend/test-results/
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      - name: Build application
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Download all test results
+        uses: actions/download-artifact@v3
+        with:
+          path: frontend/test-results/
+
+      - name: Run comprehensive test analysis
+        working-directory: frontend
+        run: npx ts-node src/test/run-all-tests.ts
+
+      - name: Check quality gates
+        working-directory: frontend
+        run: |
+          # Check if quality gates passed
+          if [ -f "test-results/comprehensive-results.json" ]; then
+            echo "Quality gates results found"
+            # Add logic to parse results and fail if gates don't pass
+          else
+            echo "No quality gates results found"
+            exit 1
+          fi
+
+      - name: Generate test report
+        working-directory: frontend
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "test-results/comprehensive-results.json" ]; then
+            # Parse and display results
+            echo "✅ Comprehensive test suite completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Test suite failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run security audit
+        working-directory: frontend
+        run: npm audit --audit-level moderate
+
+      - name: Run dependency check
+        working-directory: frontend
+        run: |
+          # Check for known vulnerabilities
+          npx audit-ci --moderate

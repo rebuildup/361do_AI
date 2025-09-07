@@ -4,17 +4,17 @@
 version: "3.8"
 
 services:
-  # メインアプリケーションサービス
+  # メインアプリケーションサービス（統合版 - React UI）
   ai-agent:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: self-learning-ai-agent
+      dockerfile: Dockerfile.integrated
+    container_name: self-learning-ai-agent-integrated
     restart: unless-stopped
     ports:
-      - "8000:8000" # FastAPI
-      - "8501:8501" # Streamlit
-      - "9090:9090" # Prometheus
+      - "80:80" # Nginx (React Frontend)
+      - "8000:8000" # FastAPI (Direct Access)
+      - "8501:8501" # Streamlit (Legacy Support)
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -27,6 +27,9 @@ services:
       - PYTHONPATH=/app
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
+      - FRONTEND_ENABLED=true
+      - NGINX_ENABLED=true
+      - UI_MODE=react
     env_file:
       - .env
     depends_on:
@@ -43,7 +46,52 @@ services:
               count: 1
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      test: ["CMD", "bash", "/app/scripts/healthcheck.sh", "once"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
+
+  # Legacy Streamlit Service (Optional)
+  ai-agent-legacy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: self-learning-ai-agent-legacy
+    restart: unless-stopped
+    ports:
+      - "8502:8501" # Alternative port for legacy Streamlit
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./config:/app/config
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - UI_MODE=streamlit
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - ai-agent-network
+    profiles:
+      - legacy # Only start with --profile legacy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,7 +128,7 @@ services:
     environment:
       - POSTGRES_DB=ai_agent
       - POSTGRES_USER=ai_agent
-      - POSTGRES_PASSWORD=ai_agent_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai_agent_password}
     networks:
       - ai-agent-network
     healthcheck:
@@ -134,7 +182,7 @@ services:
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin_password
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin_password}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - ai-agent-network
@@ -191,7 +239,8 @@ services:
       - elasticsearch_data:/usr/share/elasticsearch/data
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     networks:
       - ai-agent-network
@@ -225,14 +274,14 @@ services:
   backup:
     image: postgres:15-alpine
     container_name: ai-agent-backup
-    restart: "no"
+    restart: unless-stopped
     volumes:
       - ./backups:/backups
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=ai_agent
       - POSTGRES_USER=ai_agent
-      - POSTGRES_PASSWORD=ai_agent_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai_agent_password}
     networks:
       - ai-agent-network
     command: >

@@ -1,12 +1,12 @@
-# Self-Learning AI Agent Dockerfile
-# 自己学習AIエージェント用Dockerfile
+# Self-Learning AI Agent Dockerfile (Legacy Streamlit)
+# 自己学習AIエージェント用Dockerfile（レガシーStreamlit版）
 
 # ベースイメージ: Python 3.11 + CUDA 12.1
 FROM nvidia/cuda:12.1-devel-ubuntu22.04
 
 # メタデータ
 LABEL maintainer="Self-Learning AI Agent Team"
-LABEL description="Self-Learning AI Agent with RTX 4050 optimization"
+LABEL description="Self-Learning AI Agent with RTX 4050 optimization (Legacy Streamlit)"
 LABEL version="1.0.0"
 
 # 環境変数設定
@@ -22,9 +22,9 @@ WORKDIR /app
 
 # システムパッケージの更新とインストール
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
-    python3.11-distutils \
+    python3 \
+    python3-dev \
+    python3-distutils \
     python3-pip \
     git \
     curl \
@@ -47,9 +47,6 @@ RUN apt-get update && apt-get install -y \
     libhdf5-dev \
     libhdf5-serial-dev \
     libhdf5-103 \
-    libqtgui4 \
-    libqtwebkit4 \
-    libqt4-test \
     python3-pyqt5 \
     libblas-dev \
     liblapack-dev \
@@ -58,70 +55,15 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 3.11をデフォルトに設定
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+# Python 3をデフォルトに設定
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
 # pipのアップグレード
 RUN pip install --upgrade pip setuptools wheel
 
-# PyTorchとCUDA関連パッケージのインストール
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# 基本的なPythonパッケージのインストール
-RUN pip install \
-    numpy==1.24.3 \
-    pandas==2.0.3 \
-    scikit-learn==1.3.0 \
-    matplotlib==3.7.2 \
-    seaborn==0.12.2 \
-    plotly==5.15.0 \
-    jupyter==1.0.0 \
-    notebook==6.5.4 \
-    ipykernel==6.25.0
-
-# 機械学習関連パッケージ
-RUN pip install \
-    transformers==4.33.2 \
-    datasets==2.14.5 \
-    accelerate==0.21.0 \
-    bitsandbytes==0.41.1 \
-    peft==0.5.0 \
-    trl==0.7.1 \
-    sentence-transformers==2.2.2 \
-    chromadb==0.4.10 \
-    faiss-cpu==1.7.4
-
-# Webフレームワーク
-RUN pip install \
-    fastapi==0.103.1 \
-    uvicorn[standard]==0.23.2 \
-    streamlit==1.26.0 \
-    gradio==3.39.0
-
-# データベースとストレージ
-RUN pip install \
-    sqlalchemy==2.0.20 \
-    alembic==1.11.3 \
-    redis==4.6.0 \
-    pymongo==4.4.1
-
-# 監視とログ
-RUN pip install \
-    prometheus-client==0.17.1 \
-    psutil==5.9.5 \
-    GPUtil==1.4.0 \
-    nvidia-ml-py3==7.352.0
-
-# テストと開発ツール
-RUN pip install \
-    pytest==7.4.2 \
-    pytest-asyncio==0.21.1 \
-    pytest-cov==4.1.0 \
-    black==23.7.0 \
-    flake8==6.0.0 \
-    mypy==1.5.1 \
-    pre-commit==3.3.3
+## Optional: if you need CUDA wheels, keep this, otherwise rely on requirements.txt only
+# RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # アプリケーションコードのコピー
 COPY . /app/
@@ -151,5 +93,5 @@ USER agent
 # エントリーポイント
 ENTRYPOINT ["/entrypoint.sh"]
 
-# デフォルトコマンド
-CMD ["python", "main.py"]
+# デフォルトコマンド（レガシーStreamlit）
+CMD ["python", "main.py", "--ui", "streamlit"]

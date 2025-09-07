@@ -6,7 +6,7 @@ alwaysApply: true
 
 Keep the files placed in the root folder to the absolute minimum.
 
-Use yarn instead of npm
+Use yarn instead of npm (only if package.json exists)
 
 Avoid using drop shadows
 

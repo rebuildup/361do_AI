@@ -361,6 +361,15 @@ class InferenceOptimizer:
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()
             
+            # ウォームアップ推論（sample_inputが提供されている場合）
+            if sample_input is not None:
+                try:
+                    with torch.no_grad():
+                        _ = optimized_model(sample_input)
+                    logger.info("ウォームアップ推論完了")
+                except Exception as e:
+                    logger.warning(f"ウォームアップ推論失敗: {e}")
+            
             return optimized_model
             
         except Exception as e:
@@ -471,6 +480,8 @@ class InferenceOptimizer:
                     gpu_memory = torch.cuda.get_device_properties(0).total_memory
                     if gpu_memory < 4 * 1024 * 1024 * 1024:  # 4GB未満
                         return min(8, request_count)
+                    elif gpu_memory < 6 * 1024 * 1024 * 1024:  # 6GB未満（RTX 4050対応）
+                        return min(12, request_count)
                     elif gpu_memory < 8 * 1024 * 1024 * 1024:  # 8GB未満
                         return min(16, request_count)
                     else:
@@ -606,8 +617,9 @@ class InferenceOptimizer:
         """キャッシュキー生成"""
         try:
             if isinstance(input_data, torch.Tensor):
-                # テンソルの場合、ハッシュ値を計算
-                tensor_hash = hash(input_data.data_ptr())
+                # テンソルの場合、内容のハッシュ値を計算
+                tensor_content = input_data.cpu().numpy().tobytes()
+                tensor_hash = hash(tensor_content)
                 return f"{model_name}_{tensor_hash}"
             else:
                 # その他の場合、文字列表現のハッシュ
@@ -729,7 +741,7 @@ async def main():
             return self.linear(x)
     
     model = SampleModel()
-    sample_input = torch.randn(1, 100)
+    sample_input = torch.randn(100)  # Correct shape for the model
     
     try:
         # モデル最適化
@@ -742,7 +754,7 @@ async def main():
         
         # バッチ推論
         batch_requests = [
-            BatchRequest(f"req_{i}", torch.randn(1, 100))
+            BatchRequest(f"req_{i}", torch.randn(100))  # Correct shape for the model
             for i in range(10)
         ]
         

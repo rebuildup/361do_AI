@@ -1,6 +1,6 @@
-# 自己学習 AI エージェント (Self-Learning AI Agent)
+# 自己学習 AI エージェント 361do_AI (Self-Learning AI Agent)
 
-RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェントです。
+RTX 4050 6GB VRAM 環境で動作する高性能自己学習 AI エージェントです。React UI + FastAPI バックエンドの統合アーキテクチャを採用しています。
 
 ## 🚀 クイックスタート
 
@@ -12,8 +12,13 @@ python -m venv .venv
 .venv\Scripts\activate  # Windows
 # source .venv/bin/activate  # Linux/Mac
 
-# 依存関係のインストール
+# Python依存関係のインストール
 pip install -r requirements.txt
+
+# フロントエンド依存関係のインストール
+cd frontend
+yarn install
+cd ..
 ```
 
 ### 2. Ollama のセットアップ
@@ -28,9 +33,24 @@ ollama pull qwen2:7b-instruct
 
 ### 3. アプリケーションの起動
 
+#### 簡単起動（推奨）
+
 ```bash
-# デフォルトUI（Streamlit）で起動
-python main.py
+# Linux/Mac
+./start.sh
+
+# Windows PowerShell
+.\start.ps1
+```
+
+#### 手動起動
+
+```bash
+# 統合UI（React + FastAPI）で起動
+python main.py --ui react
+
+# レガシーStreamlit UIで起動
+python main.py --ui streamlit
 
 # テストモード
 python main.py --test
@@ -39,12 +59,34 @@ python main.py --test
 python main.py --help
 ```
 
+#### Docker Compose 起動
+
+```bash
+# 統合UI（React + FastAPI）で起動
+docker-compose up ai-agent
+
+# レガシーStreamlit UIで起動
+docker-compose --profile legacy up ai-agent-legacy
+
+# 全サービス起動（監視・ログ含む）
+docker-compose up
+```
+
 ## 📁 プロジェクト構造
 
 ```
 self-learning-ai-agent/
 ├── main.py                          # メインエントリーポイント
-├── requirements.txt                 # 依存関係
+├── start.sh                         # Linux/Mac起動スクリプト
+├── start.ps1                        # Windows起動スクリプト
+├── requirements.txt                 # Python依存関係
+├── Dockerfile.integrated            # 統合Dockerfile（React + FastAPI）
+├── Dockerfile                       # レガシーDockerfile（Streamlit）
+├── docker-compose.yml               # Docker Compose設定
+├── frontend/                        # React フロントエンド
+│   ├── package.json                 # フロントエンド依存関係
+│   ├── src/                         # React ソースコード
+│   └── dist/                        # ビルド済みフロントエンド
 ├── config/
 │   └── agent_config.yaml           # エージェント設定
 ├── src/
@@ -53,7 +95,7 @@ self-learning-ai-agent/
 │       ├── database/               # データベース層
 │       ├── reasoning/              # 推論エンジン
 │       ├── memory/                 # 記憶システム
-│       ├── interfaces/             # UI層
+│       ├── interfaces/             # UI層（FastAPI）
 │       ├── monitoring/             # 監視システム
 │       └── ...
 ├── data/                           # データストレージ
@@ -71,8 +113,10 @@ self-learning-ai-agent/
 - **推論エンジン**: Ollama 統合、Chain-of-Thought 推論
 - **品質評価システム**: 8 次元の包括的な品質評価
 - **プロンプトテンプレート管理**: 7 種類のテンプレート
-- **Web UI**: Streamlit ベースのインターフェース
+- **統合 Web UI**: React フロントエンド + FastAPI バックエンド
+- **レガシー UI**: Streamlit ベースのインターフェース（後方互換性）
 - **自然言語対話**: 完全に動作するチャット機能
+- **レスポンシブデザイン**: モバイル・デスクトップ対応
 
 ### 🔄 推論プロセス
 
@@ -101,21 +145,24 @@ self-learning-ai-agent/
 python main.py [オプション]
 
 オプション:
-  --ui {streamlit,fastapi}  UIの選択 (デフォルト: streamlit)
-  --test                    テストモードで起動
-  --config CONFIG           設定ファイルのパス
-  --port PORT               ポート番号
-  --host HOST               ホストアドレス (デフォルト: localhost)
-  --help                    ヘルプ表示
+  --ui {react,streamlit,fastapi}  UIの選択 (デフォルト: react)
+  --test                          テストモードで起動
+  --config CONFIG                 設定ファイルのパス
+  --port PORT                     ポート番号
+  --host HOST                     ホストアドレス (デフォルト: 0.0.0.0)
+  --help                          ヘルプ表示
 ```
 
 ### 使用例
 
 ```bash
-# Streamlit UIで起動
+# 統合UI（React + FastAPI）で起動
+python main.py --ui react
+
+# レガシーStreamlit UIで起動
 python main.py --ui streamlit
 
-# FastAPI UIで起動
+# FastAPI UIのみで起動
 python main.py --ui fastapi --port 8000
 
 # テストモード
@@ -171,6 +218,8 @@ python -m pytest --cov=src tests/
 - **メモリ使用量**: 6GB VRAM 以下
 - **品質スコア**: 0.6-0.8（8 次元評価）
 - **同時接続**: 複数セッション対応
+- **フロントエンド**: React + Vite による高速ビルド
+- **バックエンド**: FastAPI による高パフォーマンス API
 
 ## 🐛 トラブルシューティング
 
@@ -228,6 +277,8 @@ python -m pytest --cov=src tests/
 
 - [Ollama](https://ollama.ai/) - ローカル LLM 実行環境
 - [LangChain](https://langchain.com/) - LLM アプリケーションフレームワーク
-- [Streamlit](https://streamlit.io/) - Web アプリケーションフレームワーク
+- [React](https://react.dev/) - フロントエンドフレームワーク
+- [FastAPI](https://fastapi.tiangolo.com/) - 高パフォーマンス API フレームワーク
+- [Streamlit](https://streamlit.io/) - レガシー Web アプリケーションフレームワーク
 - [SQLAlchemy](https://www.sqlalchemy.org/) - ORM
 - [ChromaDB](https://www.trychroma.com/) - ベクトルデータベース

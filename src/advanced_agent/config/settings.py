@@ -70,6 +70,7 @@ class OllamaConfig(BaseSettings):
     timeout: int = Field(default=30, description="タイムアウト（秒）")
     retry_attempts: int = Field(default=3, description="リトライ回数")
     retry_delay: float = Field(default=1.0, description="リトライ間隔（秒）")
+    partition: Optional[str] = Field(default=None, description="パーティション設定")
     
     model_config = ConfigDict(env_prefix="OLLAMA_")
 

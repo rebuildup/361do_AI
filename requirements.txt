@@ -19,6 +19,8 @@ websockets>=11.0.0
 python-socketio>=5.8.0
 socketio>=5.8.0
 requests>=2.31.0
+jinja2>=3.1.0
+aiofiles>=23.0.0
 
 # Database & Storage
 sqlalchemy>=2.0.0

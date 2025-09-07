@@ -3,7 +3,10 @@
 # Self-Learning AI Agent Docker Entrypoint
 # 自己学習AIエージェント用Dockerエントリーポイント
 
-set -e
+set -Eeuo pipefail
+
+# エラートラップ設定
+trap 'log_error "エラーが発生しました: 行 $LINENO, コマンド: $BASH_COMMAND"' ERR
 
 # 色付きログ関数
 log_info() {
@@ -41,8 +44,13 @@ initialize() {
     mkdir -p /app/models
     mkdir -p /app/config
     
-    # 権限設定
-    chown -R agent:agent /app
+    # 権限設定（agentユーザーが存在する場合のみ）
+    if id "agent" &>/dev/null; then
+        chown -R agent:agent /app
+        log_info "agentユーザー権限設定完了"
+    else
+        log_warn "agentユーザーが存在しません。root権限で実行します。"
+    fi
     
     # データベース接続確認
     if [ "$ENVIRONMENT" = "production" ]; then

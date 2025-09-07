@@ -152,8 +152,12 @@ class BasicReasoningEngine:
     async def initialize(self) -> bool:
         """推論エンジン初期化"""
         try:
+            self.logger.info("推論エンジン初期化開始")
+            
             # デフォルトプロンプトテンプレート登録
+            self.logger.info("デフォルトプロンプトテンプレートを登録中...")
             await self._register_default_templates()
+            self.logger.info("デフォルトプロンプトテンプレート登録完了")
             
             # Ollama接続確認
             if not self.ollama_client:
@@ -163,6 +167,8 @@ class BasicReasoningEngine:
                     message="Ollama client not available"
                 )
                 return False
+            
+            self.logger.info("Ollamaクライアント接続確認完了")
             
             self.logger.log_startup(
                 component="basic_reasoning_engine_initialized",
