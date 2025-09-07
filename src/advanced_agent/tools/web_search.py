@@ -20,28 +20,22 @@ class WebSearchTool(BaseTool):
     
     name: str = "web_search"
     description: str = "インターネットで情報を検索します。検索クエリを指定してください。"
+    search_engine: str = "duckduckgo"
+    max_results: int = 5
+    timeout: int = 30
+    logger: logging.Logger = logging.getLogger(__name__)
     
     def __init__(self, 
                  search_engine: str = "duckduckgo",
                  max_results: int = 5,
                  timeout: int = 30):
         super().__init__()
-        self._search_engine = search_engine
-        self._max_results = max_results
-        self._timeout = timeout
-        self.logger = logging.getLogger(__name__)
+        
+        # Pydanticフィールドとして設定
+        self.search_engine = search_engine
+        self.max_results = max_results
+        self.timeout = timeout
     
-    @property
-    def search_engine(self) -> str:
-        return self._search_engine
-    
-    @property
-    def max_results(self) -> int:
-        return self._max_results
-    
-    @property
-    def timeout(self) -> int:
-        return self._timeout
     
     def _run(self, query: str, **kwargs) -> str:
         """同期実行"""
@@ -170,12 +164,14 @@ class WebScrapingTool(BaseTool):
     
     name: str = "web_scraping"
     description: str = "指定されたURLからWebページの内容を取得します。"
+    timeout: int = 30
+    max_content_length: int = 10000
+    logger: logging.Logger = logging.getLogger(__name__)
     
     def __init__(self, timeout: int = 30, max_content_length: int = 10000):
         super().__init__()
         self.timeout = timeout
         self.max_content_length = max_content_length
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, url: str, **kwargs) -> str:
         """同期実行"""
@@ -223,12 +219,14 @@ class NewsSearchTool(BaseTool):
     
     name: str = "news_search"
     description: str = "最新のニュースを検索します。"
+    max_results: int = 5
+    timeout: int = 30
+    logger: logging.Logger = logging.getLogger(__name__)
     
     def __init__(self, max_results: int = 5, timeout: int = 30):
         super().__init__()
         self.max_results = max_results
         self.timeout = timeout
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, query: str, **kwargs) -> str:
         """同期実行"""

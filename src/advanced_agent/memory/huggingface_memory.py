@@ -10,12 +10,25 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForSequenceClassification,
-    pipeline,
-    Pipeline
-)
+try:
+    from transformers import (
+        AutoTokenizer, 
+        AutoModelForSequenceClassification,
+        pipeline,
+        Pipeline
+    )
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    # ダミークラスを定義
+    class AutoTokenizer:
+        pass
+    class AutoModelForSequenceClassification:
+        pass
+    class Pipeline:
+        pass
+    def pipeline(*args, **kwargs):
+        return None
 from langchain.memory import (
     ConversationBufferMemory,
     ConversationSummaryMemory,
@@ -37,20 +50,26 @@ class HuggingFaceMemoryClassifier:
         
         self.device = device if device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu")
         
-        # 重要度評価パイプライン
-        self.importance_classifier = pipeline(
-            "text-classification",
-            model=importance_model,
-            device=0 if self.device == "cuda" else -1,
-            return_all_scores=True
-        )
-        
-        # 記憶分類パイプライン
-        self.memory_classifier = pipeline(
-            "text-classification", 
-            model="facebook/bart-large-mnli",
-            device=0 if self.device == "cuda" else -1
-        )
+        # Transformersが利用可能な場合のみパイプラインを初期化
+        if TRANSFORMERS_AVAILABLE:
+            # 重要度評価パイプライン
+            self.importance_classifier = pipeline(
+                "text-classification",
+                model=importance_model,
+                device=0 if self.device == "cuda" else -1,
+                return_all_scores=True
+            )
+            
+            # 記憶分類パイプライン
+            self.memory_classifier = pipeline(
+                "text-classification", 
+                model="facebook/bart-large-mnli",
+                device=0 if self.device == "cuda" else -1
+            )
+        else:
+            # ダミー実装
+            self.importance_classifier = None
+            self.memory_classifier = None
         
         # 記憶タイプの候補ラベル
         self.memory_type_labels = [
@@ -65,6 +84,10 @@ class HuggingFaceMemoryClassifier:
     
     async def evaluate_importance(self, text: str) -> float:
         """テキストの重要度を評価"""
+        
+        if not TRANSFORMERS_AVAILABLE or self.importance_classifier is None:
+            # Transformersが利用できない場合は基本的な重要度を返す
+            return 0.5
         
         try:
             # 感情分析による重要度評価
@@ -99,6 +122,10 @@ class HuggingFaceMemoryClassifier:
     
     async def classify_memory_type(self, text: str) -> str:
         """記憶のタイプを分類"""
+        
+        if not TRANSFORMERS_AVAILABLE or self.memory_classifier is None:
+            # Transformersが利用できない場合はデフォルトタイプを返す
+            return "conversational context"
         
         try:
             # ゼロショット分類による記憶タイプ判定

@@ -72,11 +72,11 @@ class StructuredLogger:
             logger.add(
                 self.log_dir / "agent_structured_{time:YYYY-MM-DD}.json",
                 level=self.log_level,
-                format=self._json_formatter,
+                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
                 rotation="1 day",
                 retention="7 days",
                 compression="zip",
-                serialize=False  # カスタムフォーマッターを使用
+                serialize=False
             )
         
         # エラー専用ログ
@@ -104,15 +104,15 @@ class StructuredLogger:
     def _json_formatter(self, record: Dict[str, Any]) -> str:
         """JSON フォーマッター"""
         log_entry = {
-            "timestamp": record["time"].isoformat(),
+            "timestamp": record["time"].isoformat() if hasattr(record["time"], 'isoformat') else str(record["time"]),
             "level": record["level"].name,
             "logger": record["name"],
             "module": record["module"],
             "function": record["function"],
             "line": record["line"],
             "message": record["message"],
-            "thread": record["thread"].name,
-            "process": record["process"].name
+            "thread": record["thread"].name if hasattr(record["thread"], 'name') else str(record["thread"]),
+            "process": record["process"].name if hasattr(record["process"], 'name') else str(record["process"])
         }
         
         # 追加フィールドがある場合

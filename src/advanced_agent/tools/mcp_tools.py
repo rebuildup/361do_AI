@@ -266,40 +266,24 @@ class MCPToolSelector(BaseTool):
             return f"MCP tool selection error: {str(e)}"
     
     def _select_tools_for_task(self, task_description: str, available_tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """タスクに適したツールを選択"""
+        """タスクに適したツールを選択（ワード検出なし）"""
         
-        task_lower = task_description.lower()
         selected_tools = []
         
-        # キーワードベースの選択
-        keyword_mappings = {
-            "search": ["search", "find", "lookup", "query"],
-            "web": ["web", "browser", "url", "http"],
-            "file": ["file", "directory", "folder", "path"],
-            "database": ["database", "db", "sql", "query"],
-            "code": ["code", "programming", "script", "function"],
-            "text": ["text", "document", "content", "string"],
-            "image": ["image", "picture", "photo", "visual"],
-            "audio": ["audio", "sound", "music", "voice"],
-            "video": ["video", "movie", "clip", "stream"]
-        }
+        # ワード検出を使わず、文脈と構造から判断
+        # タスクの複雑さに基づいてツールを選択
+        task_length = len(task_description)
         
-        for tool in available_tools:
-            tool_name = tool["name"].lower()
-            tool_description = tool["description"].lower()
-            
-            # キーワードマッチング
-            for category, keywords in keyword_mappings.items():
-                if any(keyword in task_lower for keyword in keywords):
-                    if any(keyword in tool_name or keyword in tool_description for keyword in keywords):
-                        selected_tools.append(tool)
-                        break
-        
-        # 完全一致がない場合は、説明文の類似度で選択
-        if not selected_tools:
-            for tool in available_tools:
-                if any(word in tool["description"].lower() for word in task_lower.split()):
-                    selected_tools.append(tool)
+        # 複雑なタスクの場合は、より多くのツールを提案
+        if task_length > 100:
+            # 複雑なタスクには複数のツールを提案
+            selected_tools = available_tools[:3]  # 最初の3つのツール
+        elif task_length > 50:
+            # 中程度のタスクには2つのツールを提案
+            selected_tools = available_tools[:2]
+        else:
+            # 簡単なタスクには1つのツールを提案
+            selected_tools = available_tools[:1]
         
         return selected_tools
 

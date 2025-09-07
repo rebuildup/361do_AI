@@ -342,17 +342,37 @@ JSON形式で回答してください:
             return 0.5
     
     def _identify_task_type(self, user_input: str) -> str:
-        """タスクの種類を判定"""
+        """自然言語理解に基づくタスクの種類を判定"""
         
-        question_words = ["?", "？", "どう", "なぜ", "何", "どの", "いつ", "どこ", "誰"]
-        request_words = ["お願い", "してください", "して", "作って", "教えて", "説明して", "書いて"]
+        # より自然な表現パターンを使用
+        question_patterns = [
+            "?", "？", "どう", "なぜ", "何", "どの", "いつ", "どこ", "誰",
+            "教えて", "説明して", "どうやって", "なぜ", "どのように",
+            "について", "とは", "ですか", "でしょうか"
+        ]
+        
+        request_patterns = [
+            "お願い", "してください", "して", "作って", "作成して", "生成して",
+            "実行して", "起動して", "設定して", "変更して", "更新して",
+            "検索して", "調べて", "探して", "確認して", "チェックして"
+        ]
+        
+        conversation_patterns = [
+            "ありがとう", "どうも", "こんにちは", "はじめまして", "よろしく",
+            "続けて", "さらに", "それから", "また", "追加で"
+        ]
+        
+        user_input_lower = user_input.lower()
         
         # リクエストの判定を優先
-        if any(word in user_input for word in request_words):
+        if any(pattern in user_input_lower for pattern in request_patterns):
             return "request"
-        elif any(word in user_input for word in question_words):
+        elif any(pattern in user_input_lower for pattern in question_patterns):
             return "question"
+        elif any(pattern in user_input_lower for pattern in conversation_patterns):
+            return "conversation"
         else:
+            # デフォルトは会話として扱う
             return "conversation"
     
     def _evaluate_question_completion(self, user_input: str, agent_response: str) -> float:

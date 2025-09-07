@@ -15,8 +15,8 @@ import hashlib
 import uuid
 
 from ..reasoning.ollama_client import OllamaClient
-from ..database.models import PromptTemplate, PromptVersion, PromptUsage
-from ..database.connection import get_db_session
+from ..database.models import PromptTemplate
+from ..database.connection import get_database_manager
 
 
 class PromptTemplate:
@@ -196,7 +196,7 @@ class PromptManager:
     """プロンプト管理システム"""
     
     def __init__(self, ollama_client: Optional[OllamaClient] = None):
-        self.ollama_client = ollama_client or OllamaClient()
+        self.ollama_client = ollama_client
         self.templates: Dict[str, PromptTemplate] = {}
         self.logger = logging.getLogger(__name__)
         
@@ -605,3 +605,305 @@ class PromptManager:
         except Exception as e:
             self.logger.error(f"Template import failed: {e}")
             return False
+    
+    async def self_improve_prompt(self, 
+                                template_name: str,
+                                improvement_context: str,
+                                performance_feedback: Optional[Dict[str, Any]] = None) -> bool:
+        """エージェントが独自のプロンプトを自己改善する機能"""
+        
+        try:
+            if template_name not in self.templates:
+                self.logger.error(f"Template '{template_name}' not found for self-improvement")
+                return False
+            
+            original_template = self.templates[template_name]
+            self.logger.info(f"Starting self-improvement for template: {template_name}")
+            
+            # 改善プロンプトを構築
+            improvement_prompt = self._build_improvement_prompt(
+                original_template, 
+                improvement_context, 
+                performance_feedback
+            )
+            
+            # LLMを使用してプロンプトを改善
+            if self.ollama_client:
+                improved_content = await self._generate_improved_prompt(improvement_prompt)
+                
+                if improved_content:
+                    # 新しいバージョンのテンプレートを作成
+                    new_version = self._increment_version(original_template.version)
+                    improved_template = PromptTemplate(
+                        name=f"{template_name}_v{new_version}",
+                        template=improved_content,
+                        description=f"Self-improved version of {template_name}",
+                        category=original_template.category,
+                        version=new_version,
+                        tags=original_template.tags + ["self-improved"],
+                        variables=original_template.variables,
+                        metadata={
+                            **original_template.metadata,
+                            "improvement_context": improvement_context,
+                            "performance_feedback": performance_feedback,
+                            "improvement_timestamp": datetime.now().isoformat(),
+                            "original_template_id": original_template.id
+                        }
+                    )
+                    
+                    # 改善されたテンプレートを保存
+                    self.templates[improved_template.name] = improved_template
+                    
+                    # データベースに保存
+                    await self._save_improved_template(improved_template)
+                    
+                    self.logger.info(f"Successfully improved template: {template_name} -> {improved_template.name}")
+                    return True
+                else:
+                    self.logger.warning(f"Failed to generate improved content for: {template_name}")
+                    return False
+            else:
+                self.logger.error("Ollama client not available for self-improvement")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Self-improvement failed for template '{template_name}': {e}")
+            return False
+    
+    def _build_improvement_prompt(self, 
+                                template: PromptTemplate,
+                                context: str,
+                                feedback: Optional[Dict[str, Any]]) -> str:
+        """改善プロンプトを構築"""
+        
+        prompt = f"""あなたはAIエージェントのプロンプト改善専門家です。以下のプロンプトテンプレートを改善してください。
+
+【現在のプロンプトテンプレート】
+名前: {template.name}
+説明: {template.description}
+カテゴリ: {template.category}
+バージョン: {template.version}
+
+【現在のテンプレート内容】
+{template.template}
+
+【改善のコンテキスト】
+{context}
+
+【パフォーマンスフィードバック】
+{json.dumps(feedback, ensure_ascii=False, indent=2) if feedback else "フィードバックなし"}
+
+【改善の指針】
+1. 現在のテンプレートの良い点を維持する
+2. 明確性と効果性を向上させる
+3. より具体的で実行可能な指示を含める
+4. コンテキストに基づいて最適化する
+5. 日本語で自然で理解しやすい表現を使用する
+
+【改善されたプロンプトテンプレート】
+改善されたプロンプトテンプレートのみを出力してください。説明やコメントは不要です。"""
+        
+        return prompt
+    
+    async def _generate_improved_prompt(self, improvement_prompt: str) -> Optional[str]:
+        """LLMを使用して改善されたプロンプトを生成"""
+        
+        try:
+            # Ollamaクライアントを直接使用
+            if self.ollama_client and hasattr(self.ollama_client, 'generate'):
+                # 直接テキスト生成
+                response = await self.ollama_client.generate(
+                    prompt=improvement_prompt,
+                    temperature=0.7,
+                    max_tokens=2000,
+                    system_message="あなたはプロンプトエンジニアリングの専門家です。"
+                )
+                
+                if response:
+                    # レスポンスからプロンプト部分のみを抽出
+                    improved_content = response.strip()
+                    
+                    # 基本的な検証
+                    if len(improved_content) > 50:
+                        return improved_content
+                    else:
+                        self.logger.warning("Generated content seems too short")
+                        return None
+                else:
+                    self.logger.warning("No response from LLM for prompt improvement")
+                    return None
+            else:
+                # フォールバック: シンプルな改善
+                self.logger.warning("Ollama client not available, using fallback improvement")
+                return self._fallback_improve_prompt(improvement_prompt)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to generate improved prompt: {e}")
+            return None
+    
+    def _fallback_improve_prompt(self, improvement_prompt: str) -> str:
+        """フォールバック改善（Ollamaクライアントが利用できない場合）"""
+        
+        # シンプルな改善ロジック
+        improved_prompt = improvement_prompt
+        
+        # 基本的な改善を適用
+        improvements = [
+            ("より具体的で実行可能な指示を含める", "具体的で実行可能な指示を含めてください。"),
+            ("日本語で自然で理解しやすい表現を使用する", "日本語で自然で理解しやすい表現を使用してください。"),
+            ("ユーザーの理解を促進する", "ユーザーの理解を促進するように説明してください。"),
+            ("エラーハンドリングを強化する", "エラーが発生した場合の適切な処理を含めてください。")
+        ]
+        
+        for old_text, new_text in improvements:
+            if old_text in improved_prompt:
+                improved_prompt = improved_prompt.replace(old_text, new_text)
+        
+        # 改善されたプロンプトに追加の指示を追加
+        improved_prompt += "\n\n【改善されたプロンプトテンプレート】\n"
+        improved_prompt += "あなたは自己学習型AIエージェントです。ユーザーの要求を理解し、適切な応答を生成してください。\n"
+        improved_prompt += "応答は明確で構造化され、ユーザーにとって有用な情報を含めてください。\n"
+        improved_prompt += "必要に応じて、具体的な例や詳細な説明を提供してください。"
+        
+        return improved_prompt
+    
+    def _increment_version(self, current_version: str) -> str:
+        """バージョン番号を増分"""
+        
+        try:
+            # シンプルなバージョン管理: v1.0.0 -> v1.0.1
+            if current_version.startswith('v'):
+                version_parts = current_version[1:].split('.')
+                if len(version_parts) >= 3:
+                    patch = int(version_parts[2]) + 1
+                    return f"v{version_parts[0]}.{version_parts[1]}.{patch}"
+            
+            # デフォルト: v1.0.1
+            return "v1.0.1"
+            
+        except Exception:
+            return "v1.0.1"
+    
+    async def _save_improved_template(self, template: PromptTemplate):
+        """改善されたテンプレートをデータベースに保存"""
+        
+        try:
+            db_manager = get_database_manager()
+            
+            # SQLAlchemyモデルに変換
+            from ..database.models import PromptTemplate as DBPromptTemplate
+            db_template = DBPromptTemplate(
+                name=template.name,
+                content=template.template,
+                description=template.description,
+                category=template.category,
+                version=template.version,
+                variables=json.dumps(template.variables),
+                metadata=json.dumps(template.metadata),
+                created_at=template.created_at,
+                updated_at=template.updated_at
+            )
+            
+            with db_manager.SessionLocal() as db:
+                db.add(db_template)
+                db.commit()
+                
+            self.logger.info(f"Saved improved template to database: {template.name}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save improved template: {e}")
+    
+    async def analyze_prompt_performance(self, template_name: str) -> Dict[str, Any]:
+        """プロンプトのパフォーマンスを分析"""
+        
+        try:
+            if template_name not in self.templates:
+                return {"error": f"Template '{template_name}' not found"}
+            
+            template = self.templates[template_name]
+            
+            # パフォーマンス分析
+            analysis = {
+                "template_name": template_name,
+                "usage_count": template.usage_count,
+                "success_rate": template.success_rate,
+                "version": template.version,
+                "last_updated": template.updated_at.isoformat(),
+                "variables_count": len(template.variables),
+                "template_length": len(template.template),
+                "complexity_score": self._calculate_complexity_score(template),
+                "improvement_suggestions": self._generate_improvement_suggestions(template)
+            }
+            
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"Performance analysis failed: {e}")
+            return {"error": str(e)}
+    
+    def _calculate_complexity_score(self, template: PromptTemplate) -> float:
+        """テンプレートの複雑度スコアを計算"""
+        
+        try:
+            score = 0.0
+            
+            # 長さによる複雑度
+            length = len(template.template)
+            if length > 1000:
+                score += 0.3
+            elif length > 500:
+                score += 0.2
+            elif length > 200:
+                score += 0.1
+            
+            # 変数の数による複雑度
+            var_count = len(template.variables)
+            if var_count > 5:
+                score += 0.3
+            elif var_count > 3:
+                score += 0.2
+            elif var_count > 1:
+                score += 0.1
+            
+            # 条件分岐の数による複雑度
+            if_count = template.template.count('if')
+            if if_count > 3:
+                score += 0.2
+            elif if_count > 1:
+                score += 0.1
+            
+            return min(score, 1.0)
+            
+        except Exception:
+            return 0.0
+    
+    def _generate_improvement_suggestions(self, template: PromptTemplate) -> List[str]:
+        """改善提案を生成"""
+        
+        suggestions = []
+        
+        try:
+            # 長さに関する提案
+            if len(template.template) > 1000:
+                suggestions.append("テンプレートが長すぎる可能性があります。簡潔にまとめることを検討してください。")
+            elif len(template.template) < 50:
+                suggestions.append("テンプレートが短すぎる可能性があります。より詳細な指示を追加することを検討してください。")
+            
+            # 変数に関する提案
+            if len(template.variables) > 5:
+                suggestions.append("変数が多すぎる可能性があります。テンプレートを分割することを検討してください。")
+            elif len(template.variables) == 0:
+                suggestions.append("変数が定義されていません。動的な内容を含めることを検討してください。")
+            
+            # 説明に関する提案
+            if not template.description:
+                suggestions.append("テンプレートの説明を追加することを推奨します。")
+            
+            # カテゴリに関する提案
+            if template.category == "general":
+                suggestions.append("より具体的なカテゴリを設定することを検討してください。")
+            
+            return suggestions
+            
+        except Exception:
+            return ["分析中にエラーが発生しました。"]

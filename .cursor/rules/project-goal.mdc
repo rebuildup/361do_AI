@@ -17,3 +17,5 @@ alwaysApply: true
 ・System where agents establish their own reward structures
 
 All of the above conditions must be achievable via natural language Japanese instructions from the WebUI.
+
+Commands are handled by agents that make their own judgments based on natural language instructions, so please never perform word recognition or similar actions.

@@ -246,3 +246,30 @@ class Configuration(Base):
         Index('idx_configurations_key', 'config_key'),
         Index('idx_configurations_active', 'is_active'),
     )
+
+
+class Conversation(Base):
+    """会話記録テーブル"""
+    __tablename__ = 'conversations'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String(36), ForeignKey('agent_states.session_id'), nullable=False)
+    user_input = Column(Text, nullable=False)
+    agent_response = Column(Text, nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    importance_score = Column(Float, nullable=False, default=0.5)
+    response_time = Column(Float, nullable=True)  # 応答時間（秒）
+    token_count = Column(Integer, nullable=False, default=0)
+    conversation_metadata = Column(SQLiteJSON, nullable=True, default=dict)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    
+    # リレーションシップ
+    agent_state = relationship("AgentState", backref="conversations")
+    
+    # インデックス
+    __table_args__ = (
+        Index('idx_conversations_session', 'session_id'),
+        Index('idx_conversations_timestamp', 'timestamp'),
+        Index('idx_conversations_importance', 'importance_score'),
+        Index('idx_conversations_deleted', 'is_deleted'),
+    )

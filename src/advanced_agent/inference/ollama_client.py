@@ -51,6 +51,19 @@ class InferenceRequest:
     system_message: Optional[str] = None
     context: Optional[List[str]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """辞書形式に変換"""
+        return {
+            'prompt': self.prompt,
+            'model_name': self.model_name,
+            'temperature': self.temperature,
+            'max_tokens': self.max_tokens,
+            'stream': self.stream,
+            'system_message': self.system_message,
+            'context': self.context,
+            'metadata': self.metadata
+        }
 
 
 @dataclass

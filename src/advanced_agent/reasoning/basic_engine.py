@@ -347,11 +347,13 @@ class BasicReasoningEngine:
             start_time = time.time()
             
             # 推論実行（OllamaClientを使用）
-            result = await self.ollama_client.generate(
+            from ..inference.ollama_client import InferenceRequest
+            inference_request = InferenceRequest(
                 prompt=final_prompt,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens
             )
+            result = await self.ollama_client.generate(inference_request)
             
             # レスポンステキストを取得
             response_text = result.content if hasattr(result, 'content') else str(result)

@@ -23,22 +23,8 @@ class CommandExecutorTool(BaseTool):
     name: str = "command_executor"
     description: str = "システムコマンドを実行します。安全なコマンドのみ実行可能です。"
     
-    def __init__(self, 
-                 allowed_commands: Optional[List[str]] = None,
-                 timeout: int = 30,
-                 working_directory: Optional[str] = None,
-                 max_output_length: int = 10000):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.allowed_commands = allowed_commands or [
-            "ls", "dir", "pwd", "cd", "cat", "type", "echo", "date", "time",
-            "python", "pip", "git", "npm", "node", "curl", "wget", "find",
-            "grep", "head", "tail", "wc", "sort", "uniq", "ps", "top", "df",
-            "du", "free", "uname", "whoami", "id", "env", "which", "where"
-        ]
-        self.timeout = timeout
-        self.working_directory = working_directory or os.getcwd()
-        self.max_output_length = max_output_length
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, command: str, **kwargs) -> str:
         """同期実行"""
@@ -55,7 +41,7 @@ class CommandExecutorTool(BaseTool):
             if not self._is_command_allowed(command):
                 return f"許可されていないコマンドです: {command}"
             
-            self.logger.info(f"Executing command: {command}")
+            logging.getLogger(__name__).info(f"Executing command: {command}")
             
             # コマンドを解析
             parsed_command = self._parse_command(command)
@@ -68,7 +54,7 @@ class CommandExecutorTool(BaseTool):
             return result
             
         except Exception as e:
-            self.logger.error(f"Command execution error: {e}")
+            logging.getLogger(__name__).error(f"Command execution error: {e}")
             return f"コマンド実行エラー: {str(e)}"
     
     def _is_command_allowed(self, command: str) -> bool:
@@ -94,7 +80,13 @@ class CommandExecutorTool(BaseTool):
                 return False
             
             # 許可されたコマンドかチェック
-            if self.allowed_commands and base_command not in self.allowed_commands:
+            allowed_commands = [
+                "ls", "dir", "pwd", "cd", "cat", "type", "echo", "date", "time",
+                "python", "pip", "git", "npm", "node", "curl", "wget", "find",
+                "grep", "head", "tail", "wc", "sort", "uniq", "ps", "top", "df",
+                "du", "free", "uname", "whoami", "id", "env", "which", "where"
+            ]
+            if allowed_commands and base_command not in allowed_commands:
                 return False
             
             # パイプやリダイレクトのチェック
@@ -104,7 +96,7 @@ class CommandExecutorTool(BaseTool):
             return True
             
         except Exception as e:
-            self.logger.error(f"Command validation error: {e}")
+            logging.getLogger(__name__).error(f"Command validation error: {e}")
             return False
     
     def _parse_command(self, command: str) -> Optional[List[str]]:
@@ -113,7 +105,7 @@ class CommandExecutorTool(BaseTool):
         try:
             return shlex.split(command)
         except Exception as e:
-            self.logger.error(f"Command parsing error: {e}")
+            logging.getLogger(__name__).error(f"Command parsing error: {e}")
             return None
     
     async def _execute_command(self, command_parts: List[str]) -> str:
@@ -125,32 +117,32 @@ class CommandExecutorTool(BaseTool):
                 *command_parts,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.working_directory
+                cwd=os.getcwd()
             )
             
             # タイムアウト付きで実行
             try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
-                    timeout=self.timeout
+                    timeout=30
                 )
             except asyncio.TimeoutError:
                 process.kill()
                 await process.wait()
-                return f"コマンドがタイムアウトしました（{self.timeout}秒）"
+                return f"コマンドがタイムアウトしました（30秒）"
             
             # 結果を整形
             output = ""
             if stdout:
                 stdout_text = stdout.decode('utf-8', errors='ignore')
-                if len(stdout_text) > self.max_output_length:
-                    stdout_text = stdout_text[:self.max_output_length] + "\n... (出力が切り詰められました)"
+                if len(stdout_text) > 10000:
+                    stdout_text = stdout_text[:10000] + "\n... (出力が切り詰められました)"
                 output += f"標準出力:\n{stdout_text}"
             
             if stderr:
                 stderr_text = stderr.decode('utf-8', errors='ignore')
-                if len(stderr_text) > self.max_output_length:
-                    stderr_text = stderr_text[:self.max_output_length] + "\n... (エラー出力が切り詰められました)"
+                if len(stderr_text) > 10000:
+                    stderr_text = stderr_text[:10000] + "\n... (エラー出力が切り詰められました)"
                 output += f"\n\n標準エラー出力:\n{stderr_text}"
             
             if process.returncode != 0:
@@ -159,7 +151,7 @@ class CommandExecutorTool(BaseTool):
             return output if output else "コマンドが正常に実行されました（出力なし）"
             
         except Exception as e:
-            self.logger.error(f"Command execution failed: {e}")
+            logging.getLogger(__name__).error(f"Command execution failed: {e}")
             return f"コマンド実行に失敗しました: {str(e)}"
 
 
@@ -169,20 +161,8 @@ class PythonExecutorTool(BaseTool):
     name: str = "python_executor"
     description: str = "Pythonコードを安全に実行します。"
     
-    def __init__(self, 
-                 timeout: int = 30,
-                 max_output_length: int = 10000,
-                 allowed_modules: Optional[List[str]] = None):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.timeout = timeout
-        self.max_output_length = max_output_length
-        self.allowed_modules = allowed_modules or [
-            "math", "random", "datetime", "json", "csv", "os", "sys",
-            "pathlib", "collections", "itertools", "functools", "operator",
-            "string", "re", "urllib", "http", "socket", "threading",
-            "multiprocessing", "asyncio", "concurrent", "logging"
-        ]
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, code: str, **kwargs) -> str:
         """同期実行"""
@@ -199,7 +179,7 @@ class PythonExecutorTool(BaseTool):
             if not self._is_code_safe(code):
                 return "安全でないコードが検出されました。"
             
-            self.logger.info("Executing Python code")
+            logging.getLogger(__name__).info("Executing Python code")
             
             # 一時ファイルにコードを書き込み
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
@@ -218,7 +198,7 @@ class PythonExecutorTool(BaseTool):
                     pass
             
         except Exception as e:
-            self.logger.error(f"Python execution error: {e}")
+            logging.getLogger(__name__).error(f"Python execution error: {e}")
             return f"Python実行エラー: {str(e)}"
     
     def _is_code_safe(self, code: str) -> bool:
@@ -254,7 +234,7 @@ class PythonExecutorTool(BaseTool):
             return True
             
         except Exception as e:
-            self.logger.error(f"Code safety check error: {e}")
+            logging.getLogger(__name__).error(f"Code safety check error: {e}")
             return False
     
     async def _execute_python_code(self, file_path: str) -> str:
@@ -272,25 +252,25 @@ class PythonExecutorTool(BaseTool):
             try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
-                    timeout=self.timeout
+                    timeout=30
                 )
             except asyncio.TimeoutError:
                 process.kill()
                 await process.wait()
-                return f"Pythonコードがタイムアウトしました（{self.timeout}秒）"
+                return f"Pythonコードがタイムアウトしました（30秒）"
             
             # 結果を整形
             output = ""
             if stdout:
                 stdout_text = stdout.decode('utf-8', errors='ignore')
-                if len(stdout_text) > self.max_output_length:
-                    stdout_text = stdout_text[:self.max_output_length] + "\n... (出力が切り詰められました)"
+                if len(stdout_text) > 10000:
+                    stdout_text = stdout_text[:10000] + "\n... (出力が切り詰められました)"
                 output += f"実行結果:\n{stdout_text}"
             
             if stderr:
                 stderr_text = stderr.decode('utf-8', errors='ignore')
-                if len(stderr_text) > self.max_output_length:
-                    stderr_text = stderr_text[:self.max_output_length] + "\n... (エラー出力が切り詰められました)"
+                if len(stderr_text) > 10000:
+                    stderr_text = stderr_text[:10000] + "\n... (エラー出力が切り詰められました)"
                 output += f"\n\nエラー:\n{stderr_text}"
             
             if process.returncode != 0:
@@ -299,7 +279,7 @@ class PythonExecutorTool(BaseTool):
             return output if output else "Pythonコードが正常に実行されました（出力なし）"
             
         except Exception as e:
-            self.logger.error(f"Python execution failed: {e}")
+            logging.getLogger(__name__).error(f"Python execution failed: {e}")
             return f"Python実行に失敗しました: {str(e)}"
 
 
@@ -311,7 +291,6 @@ class SystemInfoTool(BaseTool):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, info_type: str = "all", **kwargs) -> str:
         """同期実行"""
@@ -321,7 +300,7 @@ class SystemInfoTool(BaseTool):
         """非同期実行"""
         
         try:
-            self.logger.info(f"Getting system info: {info_type}")
+            logging.getLogger(__name__).info(f"Getting system info: {info_type}")
             
             if info_type == "all":
                 return await self._get_all_info()
@@ -339,7 +318,7 @@ class SystemInfoTool(BaseTool):
                 return f"サポートされていない情報タイプ: {info_type}"
             
         except Exception as e:
-            self.logger.error(f"System info error: {e}")
+            logging.getLogger(__name__).error(f"System info error: {e}")
             return f"システム情報取得エラー: {str(e)}"
     
     async def _get_all_info(self) -> str:

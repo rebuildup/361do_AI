@@ -369,6 +369,37 @@ class LangChainPersistentMemory:
         
         return removed_count
 
+    async def get_conversation_history(self, 
+                                     session_id: Optional[str] = None,
+                                     limit: int = 50) -> List[Dict[str, Any]]:
+        """会話履歴の取得"""
+        try:
+            target_session_id = session_id or self.current_session_id
+            if not target_session_id:
+                return []
+            
+            with self.SessionLocal() as db:
+                conversations = db.query(ConversationRecord).filter(
+                    ConversationRecord.session_id == target_session_id
+                ).order_by(ConversationRecord.timestamp.desc()).limit(limit).all()
+                
+                history = []
+                for conv in conversations:
+                    history.append({
+                        "id": conv.id,
+                        "user_input": conv.user_input,
+                        "agent_response": conv.agent_response,
+                        "timestamp": conv.timestamp.isoformat() if conv.timestamp else None,
+                        "importance_score": conv.importance_score,
+                        "metadata": conv.extra_metadata
+                    })
+                
+                return history
+                
+        except Exception as e:
+            logging.error(f"会話履歴取得エラー: {e}")
+            return []
+
     def close(self):
         """リソースのクリーンアップ"""
         if hasattr(self, 'vector_store'):
@@ -411,6 +442,37 @@ class PersistentMemoryManager:
                                metadata: Optional[Dict[str, Any]] = None) -> str:
         """会話の永続化保存"""
         return await self.memory_system.store_conversation(user_input, agent_response, metadata)
+    
+    async def get_conversation_history(self, 
+                                     session_id: Optional[str] = None,
+                                     limit: int = 50) -> List[Dict[str, Any]]:
+        """会話履歴の取得"""
+        try:
+            target_session_id = session_id or self.current_session_id
+            if not target_session_id:
+                return []
+            
+            with self.SessionLocal() as db:
+                conversations = db.query(ConversationRecord).filter(
+                    ConversationRecord.session_id == target_session_id
+                ).order_by(ConversationRecord.timestamp.desc()).limit(limit).all()
+                
+                history = []
+                for conv in conversations:
+                    history.append({
+                        "id": conv.id,
+                        "user_input": conv.user_input,
+                        "agent_response": conv.agent_response,
+                        "timestamp": conv.timestamp.isoformat() if conv.timestamp else None,
+                        "importance_score": conv.importance_score,
+                        "metadata": conv.extra_metadata
+                    })
+                
+                return history
+                
+        except Exception as e:
+            logging.error(f"会話履歴取得エラー: {e}")
+            return []
     
     async def search_memories(self, 
                             query: str,

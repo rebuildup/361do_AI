@@ -25,19 +25,8 @@ class FileManagerTool(BaseTool):
     name: str = "file_manager"
     description: str = "ファイルとディレクトリの操作を行います。"
     
-    def __init__(self, 
-                 base_directory: Optional[str] = None,
-                 max_file_size: int = 10 * 1024 * 1024,  # 10MB
-                 allowed_extensions: Optional[List[str]] = None):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.base_directory = Path(base_directory) if base_directory else Path.cwd()
-        self.max_file_size = max_file_size
-        self.allowed_extensions = allowed_extensions or [
-            '.txt', '.md', '.json', '.yaml', '.yml', '.csv', '.xml', '.html', '.css', '.js',
-            '.py', '.java', '.cpp', '.c', '.h', '.hpp', '.go', '.rs', '.php', '.rb',
-            '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.gitignore', '.env'
-        ]
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, action: str, path: str, **kwargs) -> str:
         """同期実行"""
@@ -55,7 +44,7 @@ class FileManagerTool(BaseTool):
             if not normalized_path:
                 return "無効なパスです。"
             
-            self.logger.info(f"File operation: {action} on {normalized_path}")
+            logging.getLogger(__name__).info(f"File operation: {action} on {normalized_path}")
             
             # アクション別の処理
             if action == "read":
@@ -89,7 +78,7 @@ class FileManagerTool(BaseTool):
                 return f"サポートされていないアクション: {action}"
             
         except Exception as e:
-            self.logger.error(f"File operation error: {e}")
+            logging.getLogger(__name__).error(f"File operation error: {e}")
             return f"ファイル操作エラー: {str(e)}"
     
     def _normalize_path(self, path: str) -> Optional[Path]:
@@ -101,15 +90,15 @@ class FileManagerTool(BaseTool):
             
             # ベースディレクトリ内かチェック
             try:
-                resolved_path.relative_to(self.base_directory)
+                resolved_path.relative_to(Path.cwd())
             except ValueError:
                 # ベースディレクトリ外の場合は、ベースディレクトリからの相対パスとして扱う
-                resolved_path = self.base_directory / path
+                resolved_path = Path.cwd() / path
             
             return resolved_path
             
         except Exception as e:
-            self.logger.error(f"Path normalization error: {e}")
+            logging.getLogger(__name__).error(f"Path normalization error: {e}")
             return None
     
     async def _read_file(self, path: Path) -> str:
@@ -123,8 +112,8 @@ class FileManagerTool(BaseTool):
                 return f"ファイルではありません: {path}"
             
             # ファイルサイズチェック
-            if path.stat().st_size > self.max_file_size:
-                return f"ファイルサイズが大きすぎます（最大: {self.max_file_size} bytes）"
+            if path.stat().st_size > 10 * 1024 * 1024:
+                return f"ファイルサイズが大きすぎます（最大: {10 * 1024 * 1024} bytes）"
             
             # 拡張子チェック
             if not self._is_allowed_extension(path):
@@ -325,7 +314,7 @@ class FileManagerTool(BaseTool):
                 info["MIMEタイプ"] = mime_type
             
             # ファイルの場合はハッシュ値も計算
-            if path.is_file() and stat.st_size <= self.max_file_size:
+            if path.is_file() and stat.st_size <= 10 * 1024 * 1024:
                 try:
                     with open(path, 'rb') as f:
                         content = f.read()
@@ -370,10 +359,15 @@ class FileManagerTool(BaseTool):
     def _is_allowed_extension(self, path: Path) -> bool:
         """拡張子が許可されているかチェック"""
         
-        if not self.allowed_extensions:
+        allowed_extensions = [
+            '.txt', '.md', '.json', '.yaml', '.yml', '.csv', '.xml', '.html', '.css', '.js',
+            '.py', '.java', '.cpp', '.c', '.h', '.hpp', '.go', '.rs', '.php', '.rb',
+            '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.gitignore', '.env'
+        ]
+        if not allowed_extensions:
             return True
         
-        return path.suffix.lower() in self.allowed_extensions
+        return path.suffix.lower() in allowed_extensions
 
 
 class TextProcessorTool(BaseTool):
@@ -384,7 +378,6 @@ class TextProcessorTool(BaseTool):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(__name__)
     
     def _run(self, action: str, text: str, **kwargs) -> str:
         """同期実行"""
@@ -397,7 +390,7 @@ class TextProcessorTool(BaseTool):
             if not action or not text:
                 return "アクションとテキストを指定してください。"
             
-            self.logger.info(f"Text processing: {action}")
+            logging.getLogger(__name__).info(f"Text processing: {action}")
             
             if action == "count_words":
                 return await self._count_words(text)
@@ -424,7 +417,7 @@ class TextProcessorTool(BaseTool):
                 return f"サポートされていないアクション: {action}"
             
         except Exception as e:
-            self.logger.error(f"Text processing error: {e}")
+            logging.getLogger(__name__).error(f"Text processing error: {e}")
             return f"テキスト処理エラー: {str(e)}"
     
     async def _count_words(self, text: str) -> str:
