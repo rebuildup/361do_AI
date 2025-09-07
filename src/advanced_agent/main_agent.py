@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-自己学習AIエージェント メインシステム
+361do_AI メインシステム
 統合されたエージェントシステムのエントリーポイント
 """
 
@@ -33,7 +33,7 @@ class AgentMain:
     async def initialize(self, config_path: Optional[str] = None) -> bool:
         """エージェント初期化"""
         try:
-            self.logger.info("自己学習AIエージェント初期化開始")
+            self.logger.info("361do_AI初期化開始")
             
             # 環境検証
             self.logger.info("環境検証実行中...")

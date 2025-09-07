@@ -98,7 +98,7 @@ class AdvancedAgentConfig(BaseSettings):
     """統合設定クラス"""
     
     # 基本情報
-    project_name: str = Field(default="Advanced Self-Learning Agent", description="プロジェクト名")
+    project_name: str = Field(default="361do_AI", description="プロジェクト名")
     version: str = Field(default="1.0.0", description="バージョン")
     environment: str = Field(default="development", description="環境")
     

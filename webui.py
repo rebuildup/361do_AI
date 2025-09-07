@@ -13,7 +13,7 @@ project_root = Path(__file__).parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# 自己学習AIエージェントのインポート
+# 361do_AIのインポート
 from src.advanced_agent.core.self_learning_agent import SelfLearningAgent, AgentState
 from src.advanced_agent.core.logger import get_logger
 from src.advanced_agent.interfaces.fastapi_gateway import FastAPIGateway
@@ -27,7 +27,7 @@ logger = get_logger()
 
 # ページ設定
 st.set_page_config(
-    page_title="自己学習AIエージェント",
+    page_title="361do_AI",
     page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -634,7 +634,7 @@ def render_progress_display(container):
 
 # エージェント初期化関数
 async def initialize_agent_with_progress(progress_container):
-    """進捗表示付きで自己学習AIエージェントを初期化"""
+    """進捗表示付きで361do_AIを初期化"""
     if st.session_state.agent_initialized:
         return True
     
@@ -737,7 +737,7 @@ async def initialize_agent_with_progress(progress_container):
 
 # 元の初期化関数（後方互換性のため）
 async def initialize_agent():
-    """自己学習AIエージェントを初期化（進捗表示なし）"""
+    """361do_AIを初期化（進捗表示なし）"""
     if st.session_state.agent_initialized:
         return True
     
@@ -781,7 +781,7 @@ async def initialize_agent():
         
         try:
             st.session_state.fastapi_gateway = FastAPIGateway(
-                title="Advanced AI Agent API",
+                title="361do_AI API",
                 version="1.0.0",
                 description="OpenAI 互換 AI エージェント API",
                 enable_auth=False,
@@ -877,7 +877,7 @@ def navigate_to_page(page_name: str):
 # ページ表示関数
 def show_chat_page():
     """チャットページ表示 - 改善版"""
-    st.title("AI Agent Chat")
+    st.title("361do_AI Chat")
     
     # クイックツール処理（自然言語理解ベース）
     if hasattr(st.session_state, 'quick_tool') and st.session_state.quick_tool:
@@ -1268,7 +1268,7 @@ def show_api_page():
     
     if st.session_state.fastapi_gateway:
         st.subheader("FastAPI Gateway")
-        st.write("**タイトル:** Advanced AI Agent API")
+        st.write("**タイトル:** 361do_AI API")
         st.write("**バージョン:** 1.0.0")
         st.write("**説明:** OpenAI 互換 AI エージェント API")
         
@@ -1370,7 +1370,7 @@ def show_help_page():
 
 # サイドバー - ツールとして再設計（完全モノクロ化）
 with st.sidebar:
-    st.header("AI Agent Tools")
+    st.header("361do_AI Tools")
     
     # === エージェント状態表示（簡潔） ===
     if st.session_state.agent_initialized:

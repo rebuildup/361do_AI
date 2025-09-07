@@ -47,7 +47,7 @@ class SelfPromptRewriter:
         
         # プロンプトテンプレート
         self.base_templates = {
-            "system": "あなたは{role}です。{personality}",
+            "system": "あなたは361do_AIです。{personality}",
             "instruction": "{task}を実行してください。{constraints}",
             "context": "文脈: {context}",
             "output_format": "回答形式: {format}",

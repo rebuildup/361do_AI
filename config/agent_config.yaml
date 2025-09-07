@@ -1,11 +1,11 @@
-# 自己学習AIエージェント設定ファイル
-# Self-Learning AI Agent Configuration
+# 361do_AI設定ファイル
+# 361do_AI Configuration
 
 # 基本設定
-name: "SelfLearningAgent"
+name: "361do_AI"
 version: "1.0.0"
-description: "自己学習AIエージェント"
-author: "AI Agent"
+description: "361do_AI - 自己学習AIエージェント"
+author: "361do_AI"
 
 # データベース設定
 database:

@@ -1,6 +1,6 @@
 """
-Self-Learning AI Agent Core System
-自己学習AIエージェントの中核システム
+361do_AI Core System
+361do_AIの中核システム
 
 機能:
 - 永続セッション管理
@@ -100,7 +100,7 @@ class RewardSignal:
 
 
 class SelfLearningAgent:
-    """自己学習AIエージェント"""
+    """361do_AI"""
     
     def __init__(self, 
                  config_path: str = "config/advanced_agent.yaml",
@@ -409,7 +409,7 @@ class SelfLearningAgent:
     async def _create_initial_prompt_template(self, session_id: str):
         """初期プロンプトテンプレート作成"""
         
-        initial_prompt = """あなたは自己学習型AIエージェントです。以下の能力を持っています：
+        initial_prompt = """あなたは361do_AIです。以下の能力を持っています：
 
 1. **永続的記憶**: 過去の会話を記憶し、継続的な学習を行います
 2. **自己改善**: プロンプトとチューニングデータを動的に最適化します

@@ -178,10 +178,10 @@ class AgentConfig(BaseSettings):
     """エージェント設定"""
     
     # 基本設定
-    name: str = Field(default="SelfLearningAgent", description="エージェント名")
+    name: str = Field(default="361do_AI", description="エージェント名")
     version: str = Field(default="1.0.0", description="バージョン")
-    description: str = Field(default="自己学習AIエージェント", description="説明")
-    author: str = Field(default="AI Agent", description="作者")
+    description: str = Field(default="361do_AI - 自己学習AIエージェント", description="説明")
+    author: str = Field(default="361do_AI", description="作者")
     
     # サブ設定
     database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="データベース設定")

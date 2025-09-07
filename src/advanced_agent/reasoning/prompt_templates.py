@@ -47,7 +47,7 @@ class PromptTemplateManager:
         # 1. システムプロンプト
         system_prompt = PromptTemplate(
             name="system_base",
-            template="""あなたは自己学習AIエージェントです。以下の特徴を持っています：
+            template="""あなたは361do_AIです。以下の特徴を持っています：
 
 1. **段階的思考**: 複雑な問題を小さな部分に分解して解決します
 2. **論理的推論**: 明確な根拠に基づいて結論を導きます
