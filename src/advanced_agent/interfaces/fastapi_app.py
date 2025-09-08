@@ -15,6 +15,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -120,6 +121,31 @@ def create_app() -> FastAPI:
 def setup_agent_routes(app: FastAPI):
     """Setup agent-specific routes"""
     
+    # Health endpoint (used by frontend)
+    @app.get("/v1/health")
+    async def health():
+        try:
+            _ = await get_agent_instance()
+            return {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0",
+                "system_info": {
+                    "cpu_percent": 0,
+                    "memory_percent": 0
+                }
+            }
+        except Exception:
+            return {
+                "status": "degraded",
+                "timestamp": datetime.now().isoformat(),
+                "version": "unknown",
+                "system_info": {
+                    "cpu_percent": 0,
+                    "memory_percent": 0
+                }
+            }
+
     # Models endpoint
     @app.get("/v1/models")
     async def list_models():
@@ -440,6 +466,165 @@ def setup_agent_routes(app: FastAPI):
                 }
             }
     
+    # OpenAI-compatible chat completion (non-agent path expected by frontend)
+    @app.post("/v1/chat/completions")
+    async def chat_completions(request: dict):
+        try:
+            agent = await get_agent_instance()
+            messages = request.get("messages", []) or []
+            # Fallback to a simple prompt if messages missing
+            if messages:
+                # Convert to simple user message
+                user_message = None
+                for msg in reversed(messages):
+                    if msg.get("role") == "user":
+                        user_message = msg.get("content", "")
+                        break
+            else:
+                user_message = request.get("prompt", "")
+            user_message = user_message or ""
+
+            result = await agent.process_user_input(user_message)
+            response_content = result.get("response", "")
+
+            return {
+                "id": f"chatcmpl-{uuid.uuid4()}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get("model", "agent"),
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": response_content},
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": len(user_message.split()),
+                    "completion_tokens": len(response_content.split()),
+                    "total_tokens": len(user_message.split()) + len(response_content.split())
+                }
+            }
+        except Exception as e:
+            logger.error(f"Chat completion error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Streaming variant used by frontend when stream=true (SSE-like)
+    @app.post("/v1/chat/completions", response_class=StreamingResponse)
+    async def chat_completions_stream(request: dict):  # type: ignore[func-duplicates]
+        try:
+            stream = request.get("stream", False)
+            if not stream:
+                # Delegate to non-streaming handler
+                return await chat_completions(request)
+
+            agent = await get_agent_instance()
+            messages = request.get("messages", []) or []
+            user_message = ""
+            for msg in reversed(messages):
+                if msg.get("role") == "user":
+                    user_message = msg.get("content", "")
+                    break
+
+            async def event_generator():
+                try:
+                    result = await agent.process_user_input(user_message)
+                    content = result.get("response", "")
+                    chunk = {
+                        "id": f"chatcmpl-{uuid.uuid4()}",
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": request.get("model", "agent"),
+                        "choices": [{
+                            "index": 0,
+                            "delta": {"content": content},
+                            "finish_reason": None
+                        }]
+                    }
+                    yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                    yield "data: [DONE]\n\n"
+                except Exception as ex:
+                    logger.error(f"Streaming error: {ex}")
+                    yield f"data: {json.dumps({"error": str(ex)})}\n\n"
+
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+        except Exception as e:
+            logger.error(f"Chat completion stream setup error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Basic inference endpoint expected by frontend
+    @app.post("/v1/inference")
+    async def inference(request: dict):
+        try:
+            agent = await get_agent_instance()
+            prompt = request.get("prompt", "")
+            result = await agent.process_user_input(prompt)
+            return {
+                "response": result.get("response", ""),
+                "reasoning": result.get("reasoning", ""),
+                "session_id": request.get("session_id")
+            }
+        except Exception as e:
+            logger.error(f"Inference error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Session creation
+    @app.post("/v1/sessions")
+    async def create_session(request: dict):
+        try:
+            agent = await get_agent_instance()
+            user_id = request.get("user_id")
+            session_id = await agent.initialize_session(user_id=user_id)
+            return {"session_id": session_id, "user_id": user_id}
+        except Exception as e:
+            logger.error(f"Create session error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Get session by ID (simple presence check)
+    @app.get("/v1/sessions/{session_id}")
+    async def get_session(session_id: str):
+        try:
+            agent = await get_agent_instance()
+            # For now, just echo back; deeper details would read memory DB
+            return {"session_id": session_id, "active": True}
+        except Exception as e:
+            logger.error(f"Get session error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # System stats (placeholder values)
+    @app.post("/v1/system/stats")
+    async def system_stats(_: dict | None = None):
+        try:
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "system": {
+                    "cpu_percent": 0,
+                    "memory_percent": 0,
+                    "disk_usage": 0,
+                    "uptime": 0,
+                },
+                "agent": {
+                    "status": "active",
+                    "active_sessions": 1,
+                    "total_requests": 0,
+                    "average_response_time": 0,
+                },
+            }
+        except Exception as e:
+            logger.error(f"System stats error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Memory search (placeholder)
+    @app.post("/v1/memory/search")
+    async def memory_search(request: dict):
+        try:
+            query = request.get("query")
+            return {
+                "results": [],
+                "query": query,
+            }
+        except Exception as e:
+            logger.error(f"Memory search error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     # Session message history
     @app.get("/v1/sessions/{session_id}/messages")
     async def get_conversation_history(session_id: str, limit: int = 50):

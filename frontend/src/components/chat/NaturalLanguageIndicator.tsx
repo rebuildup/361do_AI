@@ -58,7 +58,8 @@ export const NaturalLanguageIndicator: React.FC<NLPIndicatorProps> = ({
   return (
     <div
       className={cn(
-        'bg-gray-900/80 border border-gray-700 rounded-lg p-3 backdrop-blur-sm',
+        'rounded-lg p-3 backdrop-blur-sm',
+        'bg-[var(--color-background-secondary)] border border-[var(--color-border)]',
         'animate-fade-in',
         className
       )}
@@ -67,23 +68,31 @@ export const NaturalLanguageIndicator: React.FC<NLPIndicatorProps> = ({
       <div className="flex items-center gap-2 mb-2">
         <Brain
           size={16}
-          className={cn('text-blue-400', isProcessing && 'animate-pulse')}
+          className={cn(
+            'text-[var(--color-accent)]',
+            isProcessing && 'animate-pulse'
+          )}
         />
-        <span className="text-sm font-medium text-gray-300">
+        <span className="text-sm font-medium text-[var(--color-text)]">
           {language === 'ja' ? '自然言語処理' : 'Natural Language Processing'}
         </span>
 
         {/* Language Indicator */}
         <div className="flex items-center gap-1 ml-auto">
-          <Languages size={12} className="text-gray-500" />
-          <span className="text-xs text-gray-500 uppercase">{language}</span>
+          <Languages
+            size={12}
+            className="text-[var(--color-text-secondary)] opacity-70"
+          />
+          <span className="text-xs text-[var(--color-text-secondary)] opacity-70 uppercase">
+            {language}
+          </span>
         </div>
       </div>
 
       {/* Tools Used */}
       {toolsUsed.length > 0 && (
         <div className="mb-2">
-          <div className="text-xs text-gray-400 mb-1">
+          <div className="text-xs text-[var(--color-text-secondary)] opacity-80 mb-1">
             {language === 'ja' ? '使用ツール:' : 'Tools Used:'}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -94,9 +103,16 @@ export const NaturalLanguageIndicator: React.FC<NLPIndicatorProps> = ({
               return (
                 <div
                   key={index}
-                  className="flex items-center gap-1 px-2 py-1 bg-gray-800 rounded text-xs text-gray-300"
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                  style={{
+                    backgroundColor: 'var(--color-background-tertiary)',
+                    color: 'var(--color-text)',
+                  }}
                 >
-                  <IconComponent size={12} className="text-blue-400" />
+                  <IconComponent
+                    size={12}
+                    className="text-[var(--color-accent)]"
+                  />
                   <span>{label}</span>
                 </div>
               );

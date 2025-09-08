@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl } from '@/services/api';
 import { ChevronDown, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/utils';
 import { useApp, useAppActions } from '@/contexts/AppContext';
@@ -62,30 +63,22 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     setError(null);
 
     try {
-      // Try to fetch from API, fallback to sample data
-      try {
-        const response = await fetch('/v1/models');
-        if (response.ok) {
-          const data = await response.json();
-          setAvailableModels(data.data || data);
-        } else {
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } catch {
-        console.warn(
-          'Failed to fetch models from API, using sample data:',
-          '(no detail)'
-        );
-        setAvailableModels(sampleModels);
+      // Fetch from API; no demo fallback when a real backend is expected
+      const response = await fetch(buildApiUrl('/models'));
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableModels(data.data || data);
+      } else {
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      // Check model availability
       await checkModelAvailability();
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : 'Failed to load models';
       setError(errorMessage);
       console.error('Error loading models:', e);
+      // In static demo, avoid spamming logs and don't auto-poll rapidly
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +99,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     // Check each model's availability
     for (const model of models) {
       try {
-        const response = await fetch(`/v1/models/${model.id}/status`);
+        const response = await fetch(buildApiUrl(`/models/${model.id}/status`));
         if (response.ok) {
           const data = await response.json();
           statuses[model.id] = data.available ? 'available' : 'unavailable';
@@ -135,7 +128,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     try {
       // Try to set active model via API
       try {
-        const response = await fetch('/v1/models/active', {
+        const response = await fetch(buildApiUrl('/models/active'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

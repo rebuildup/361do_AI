@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, memo, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ErrorProvider, useErrorContext } from '@/contexts/ErrorContext';
 import { AppProvider } from '@/contexts/AppContext';
@@ -18,10 +19,18 @@ const BackendTester = lazy(() => import('@/components/debug/BackendTester'));
 
 // Loading fallback component
 const LoadingFallback = memo(() => (
-  <div className="flex items-center justify-center min-h-screen bg-black">
+  <div
+    className="flex items-center justify-center min-h-screen"
+    style={{ backgroundColor: '#000000' }}
+  >
     <div className="flex flex-col items-center gap-4">
-      <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-      <p className="text-gray-400 text-sm">Loading...</p>
+      <div
+        className="w-8 h-8 border-2 rounded-full animate-spin"
+        style={{ borderColor: '#181818', borderTopColor: '#1d9bf0' }}
+      />
+      <p className="text-sm" style={{ color: '#e7e9ea' }}>
+        Loading...
+      </p>
     </div>
   </div>
 ));
@@ -37,16 +46,25 @@ const ErrorFallback = memo(
     error: Error;
     resetErrorBoundary: () => void;
   }) => (
-    <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="flex flex-col items-center gap-4 p-8 bg-gray-900 border border-gray-700 rounded-lg max-w-md">
-        <div className="text-red-400 text-xl">⚠️</div>
-        <h2 className="text-lg font-semibold text-white">
+    <div
+      className="flex items-center justify-center min-h-screen"
+      style={{ backgroundColor: '#000000' }}
+    >
+      <div
+        className="flex flex-col items-center gap-4 p-8 rounded-lg max-w-md border"
+        style={{ backgroundColor: '#181818', borderColor: '#181818' }}
+      >
+        <AlertTriangle size={24} color="#1d9bf0" aria-label="Alert" />
+        <h2 className="text-lg font-semibold" style={{ color: '#e7e9ea' }}>
           Something went wrong
         </h2>
-        <p className="text-gray-400 text-center text-sm">{error.message}</p>
+        <p className="text-center text-sm" style={{ color: '#e7e9ea' }}>
+          {error.message}
+        </p>
         <button
           onClick={resetErrorBoundary}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 rounded transition-colors"
+          style={{ backgroundColor: '#1d9bf0', color: '#000000' }}
         >
           Try again
         </button>
@@ -116,7 +134,10 @@ const AppContent = memo(() => {
 
   return (
     <AppProvider>
-      <div className="min-h-screen bg-black text-white">
+      <div
+        className="min-h-screen"
+        style={{ backgroundColor: '#000000', color: '#e7e9ea' }}
+      >
         {/* Status banners */}
         {!appStatus.isOnline && <OfflineModeBanner />}
         {appStatus.isOnline && !appStatus.backendAvailable && (
@@ -132,11 +153,7 @@ const AppContent = memo(() => {
             console.error('App Error:', error, errorInfo);
           }}
         >
-          <Suspense
-            fallback={
-              <LoadingFallback message="アプリケーションを読み込み中..." />
-            }
-          >
+          <Suspense fallback={<LoadingFallback />}>
             <SimpleLayout>
               <DebugWrapper />
 
@@ -144,11 +161,7 @@ const AppContent = memo(() => {
                 level="component"
                 onError={error => reportError(error, 'Main Content')}
               >
-                <Suspense
-                  fallback={
-                    <LoadingFallback message="メインコンテンツを読み込み中..." />
-                  }
-                >
+                <Suspense fallback={<LoadingFallback />}>
                   <SimpleMainContent />
                 </Suspense>
               </ErrorBoundary>

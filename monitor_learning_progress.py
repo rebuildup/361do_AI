@@ -7,6 +7,7 @@ Monitor Learning Progress
 import sqlite3
 import json
 import time
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 

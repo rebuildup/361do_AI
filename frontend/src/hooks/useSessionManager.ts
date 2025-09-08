@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { generateId, storage } from '@/utils';
+import { buildApiUrl } from '@/services/api';
 import { useApp, useAppActions } from '@/contexts/AppContext';
 import { sessionPersistence } from '@/services/sessionPersistence';
 import type { SessionResponse, UIMessage } from '@/types';
@@ -102,7 +103,7 @@ export const useSessionManager = () => {
         // Try to create session via API
         let apiSession: SessionResponse | null = null;
         try {
-          const response = await fetch('/v1/sessions', {
+          const response = await fetch(buildApiUrl('/sessions'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -188,7 +189,7 @@ export const useSessionManager = () => {
       try {
         // Try to load session from API
         try {
-          const response = await fetch(`/v1/sessions/${sessionId}`);
+          const response = await fetch(buildApiUrl(`/sessions/${sessionId}`));
           if (response.ok) {
             const apiSession = await response.json();
             // Update local session with API data if available
@@ -228,7 +229,7 @@ export const useSessionManager = () => {
       try {
         // Try to delete from API
         try {
-          await fetch(`/v1/sessions/${sessionId}`, {
+          await fetch(buildApiUrl(`/sessions/${sessionId}`), {
             method: 'DELETE',
           });
         } catch (apiError) {
@@ -310,7 +311,7 @@ export const useSessionManager = () => {
       try {
         // Try to update via API
         try {
-          const response = await fetch(`/v1/sessions/${sessionId}`, {
+          const response = await fetch(buildApiUrl(`/sessions/${sessionId}`), {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -368,7 +369,7 @@ export const useSessionManager = () => {
     try {
       // Try to clear via API
       try {
-        await fetch('/v1/sessions', {
+        await fetch(buildApiUrl('/sessions'), {
           method: 'DELETE',
         });
       } catch (apiError) {

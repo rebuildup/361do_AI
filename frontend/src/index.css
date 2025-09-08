@@ -26,13 +26,14 @@
   --color-gray-950: #0a0a0a;
 
   --color-background: #000000;
-  --color-background-secondary: #0a0a0a;
-  --color-background-tertiary: #1a1a1a;
-  --color-text: #ffffff;
-  --color-text-secondary: #d4d4d4;
-  --color-text-muted: #8b8b8b;
-  --color-border: #262626;
-  --color-border-light: #3d3d3d;
+  --color-background-secondary: #181818;
+  --color-background-tertiary: #181818;
+  --color-text: #e7e9ea;
+  --color-text-secondary: #e7e9ea;
+  --color-text-muted: #e7e9ea;
+  --color-accent: #1d9bf0;
+  --color-border: #181818;
+  --color-border-light: #181818;
 
   --max-w-main: 768px;
 }
@@ -46,13 +47,14 @@
 
     /* Monochrome dark theme variables */
     --background: #000000;
-    --background-secondary: #0a0a0a;
-    --background-tertiary: #1a1a1a;
-    --text: #ffffff;
-    --text-secondary: #d4d4d4;
-    --text-muted: #8b8b8b;
-    --border: #262626;
-    --border-light: #3d3d3d;
+    --background-secondary: #181818;
+    --background-tertiary: #181818;
+    --text: #e7e9ea;
+    --text-secondary: #e7e9ea;
+    --text-muted: #e7e9ea;
+    --accent: #1d9bf0;
+    --border: #181818;
+    --border-light: #181818;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -81,7 +83,7 @@
   /* Custom component styles */
   .btn-primary {
     background-color: var(--color-primary-950);
-    color: #ffffff;
+    color: var(--color-text);
     border: 1px solid var(--color-border);
     transition-property:
       color, background-color, border-color, text-decoration-color, fill, stroke;
@@ -92,7 +94,7 @@
 
   .btn-secondary {
     background-color: var(--color-background-secondary);
-    color: var(--color-text-secondary);
+    color: var(--color-text);
     border: 1px solid var(--color-border);
     transition-property:
       color, background-color, border-color, text-decoration-color, fill, stroke;
@@ -145,14 +147,19 @@
   /* Streaming text animation */
   .streaming-text {
     animation: shimmer 2s infinite;
-    background: linear-gradient(90deg, #ffffff 0%, #d4d4d4 50%, #ffffff 100%);
+    background: linear-gradient(
+      90deg,
+      var(--color-text) 0%,
+      var(--color-accent) 50%,
+      var(--color-text) 100%
+    );
     background-size: 200% 100%;
   }
 
   /* Message bubble styles */
   .message-user {
-    background-color: var(--color-primary-900);
-    color: #ffffff;
+    background-color: var(--color-background-secondary);
+    color: var(--color-text);
     border-radius: 0.5rem;
     padding: 0.75rem;
     margin-left: auto;

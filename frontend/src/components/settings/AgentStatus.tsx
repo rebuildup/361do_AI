@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl } from '@/services/api';
 import {
   Bot,
   Activity,
@@ -45,49 +46,53 @@ const AgentStatus: React.FC<AgentStatusProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch system stats
+  // Fetch system stats with graceful degradation and backoff
   useEffect(() => {
+    let cancelled = false;
+    let interval: number | undefined;
+    let backoffMs = 5000;
+
+    const hasRealBackend =
+      !!(window as any).__API_BASE__ ||
+      !!(import.meta as any).env?.VITE_API_BASE;
+
     const fetchStats = async () => {
       try {
-        const response = await fetch('/v1/system/stats');
-        if (response.ok) {
-          const data = await response.json();
+        const response = await fetch(buildApiUrl('/system/stats'));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!cancelled) {
           setSystemStats(data);
           setError(null);
-        } else {
-          throw new Error(`HTTP ${response.status}`);
+          backoffMs = 5000; // reset on success
         }
-      } catch {
-        // Simulate system stats for development
-        const mockStats: SystemStats = {
-          cpu: {
-            usage: Math.random() * 100,
-            temperature: 45 + Math.random() * 20,
-          },
-          memory: {
-            usage: 4.2 + Math.random() * 2,
-            total: 16,
-          },
-          gpu: {
-            usage: Math.random() * 100,
-            memory: 6.8 + Math.random() * 1.2,
-            temperature: 55 + Math.random() * 15,
-          },
-          uptime: Date.now() - Math.random() * 86400000, // Random uptime up to 24h
-          modelLoaded: state.activeModel !== '',
-          lastActivity: new Date(Date.now() - Math.random() * 300000), // Last 5 minutes
-        };
-        setSystemStats(mockStats);
-        setError(null);
+      } catch (e) {
+        setError('バックエンド未接続');
+        if (hasRealBackend) {
+          // When a real backend is expected, do not generate fake data. Back off polling.
+          backoffMs = Math.min(backoffMs * 2, 60000);
+        } else {
+          // In purely static demo, avoid noisy polling and also avoid random data; show nulls
+          if (!cancelled) {
+            setSystemStats(null);
+          }
+          backoffMs = 30000;
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          window.clearInterval(interval);
+          interval = window.setInterval(fetchStats, backoffMs);
+          setIsLoading(false);
+        }
       }
     };
 
     fetchStats();
-    const interval = setInterval(fetchStats, 5000); // Update every 5 seconds
-
-    return () => clearInterval(interval);
+    interval = window.setInterval(fetchStats, backoffMs);
+    return () => {
+      cancelled = true;
+      if (interval) window.clearInterval(interval);
+    };
   }, [state.activeModel]);
 
   const getStatusColor = () => {

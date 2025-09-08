@@ -16,15 +16,8 @@ const Header: React.FC<HeaderProps> = ({
   className,
 }) => {
   const getStatusColor = () => {
-    switch (agentStatus) {
-      case 'processing':
-        return 'bg-yellow-600 text-yellow-100';
-      case 'error':
-        return 'bg-red-600 text-red-100';
-      case 'idle':
-      default:
-        return 'bg-green-600 text-green-100';
-    }
+    // Use monochrome base and accent for consistency
+    return '';
   };
 
   const getStatusText = () => {
@@ -42,7 +35,8 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header
       className={cn(
-        'bg-gray-950 border-b border-gray-900 px-4 py-3',
+        'px-4 py-3',
+        'bg-[var(--color-background)] border-b border-[var(--color-border)]',
         className
       )}
     >
@@ -50,31 +44,31 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center space-x-3">
           <button
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
             aria-label={
               sidebarCollapsed ? 'サイドバーを展開' : 'サイドバーを折りたたむ'
             }
           >
-            <Menu size={20} className="text-white" />
+            <Menu size={20} className="text-[var(--color-text)]" />
           </button>
-          <h1 className="text-xl font-semibold text-white">361do_AI</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text)]">
+            361do_AI
+          </h1>
         </div>
 
         <div className="flex items-center space-x-3">
-          <div
-            className={cn(
-              'px-3 py-1 rounded-full text-sm font-medium',
-              getStatusColor()
-            )}
-          >
+          <div className="px-3 py-1 rounded-full text-sm font-medium text-[var(--color-text)] border border-[var(--color-border)] bg-[var(--color-background-secondary)]">
             {getStatusText()}
           </div>
 
           <button
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
             aria-label="設定"
           >
-            <Settings size={20} className="text-gray-300" />
+            <Settings
+              size={20}
+              className="text-[var(--color-text-secondary)] opacity-80"
+            />
           </button>
         </div>
       </div>

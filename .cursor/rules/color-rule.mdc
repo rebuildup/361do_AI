@@ -4,5 +4,6 @@ globs: ["**/*.css", "**/*.py"]
 alwaysApply: true
 ---
 
-Regarding colors, follow Streamlit's default color theme.
+Use only four colors: BG color(#000000), text color(#e7e9ea), BG sub-color(#181818), and accent color(#1d9bf0).
+Do not use emojis or similar characters under any circumstances.
 The base style should be monochrome.

@@ -75,27 +75,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = memo(
               'inline-block max-w-[80%] rounded-lg px-4 py-3 relative group',
               'transition-all duration-200 hover:scale-[1.02]',
               isUser
-                ? 'bg-gray-700 text-white hover:bg-gray-600'
-                : 'bg-gray-900 text-white border border-gray-800 hover:border-gray-700'
+                ? 'text-[var(--color-text)]'
+                : 'text-[var(--color-text)] border'
             )}
+            style={{
+              backgroundColor: isUser
+                ? 'var(--color-background-secondary)'
+                : 'var(--color-background-secondary)',
+              borderColor: !isUser ? 'var(--color-border)' : undefined,
+            }}
           >
             {/* Copy Button */}
             <button
               onClick={handleCopy}
               className={cn(
                 'absolute top-2 opacity-0 group-hover:opacity-100 transition-all duration-200',
-                'p-1 rounded hover:bg-gray-600 hover:scale-110',
+                'p-1 rounded hover:scale-110',
                 isUser ? 'left-2' : 'right-2'
               )}
               title={copySuccess ? 'コピーしました！' : 'コピー'}
+              style={{ backgroundColor: 'transparent' }}
             >
               {copySuccess ? (
                 <Check
                   size={14}
-                  className="text-green-400 animate-bounce-subtle"
+                  className="text-[var(--color-accent)] animate-bounce-subtle"
                 />
               ) : (
-                <Copy size={14} className="text-gray-400" />
+                <Copy
+                  size={14}
+                  className="text-[var(--color-text-secondary)] opacity-70"
+                />
               )}
             </button>
 
@@ -112,7 +122,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = memo(
 
             {/* Error Display */}
             {message.error && (
-              <div className="mt-2 p-2 bg-red-900 border border-red-700 rounded text-red-100 text-sm">
+              <div
+                className="mt-2 p-2 rounded text-sm"
+                style={{
+                  backgroundColor: 'var(--color-background-tertiary)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                }}
+              >
                 エラー: {message.error}
               </div>
             )}

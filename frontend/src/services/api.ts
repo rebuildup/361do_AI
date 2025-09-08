@@ -25,9 +25,23 @@ import type {
 } from '@/types';
 
 // API configuration
-const API_BASE_URL = 'http://127.0.0.1:8001';
-const API_VERSION = 'v1';
-const API_TIMEOUT = 60000; // 60 seconds for agent processing
+// Development: use same-origin and Vite proxy for /v1
+// Production: prefer VITE_API_BASE; fallback to local backend to avoid 404s from static servers
+export const API_BASE_URL =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as any).env?.VITE_API_BASE) ||
+  (typeof window !== 'undefined' && (window as any).__API_BASE__) ||
+  // Default to same-origin for both dev and prod unless explicitly overridden
+  '';
+export const API_VERSION = 'v1';
+export const API_TIMEOUT = 60000; // 60 seconds for agent processing
+export const isBackendConfigured: boolean = !!API_BASE_URL;
+export function buildApiUrl(path: string): string {
+  const trimmed = path.replace(/^\/+/, '');
+  const base = API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') : '';
+  const versioned = `${base ? base + '/' : '/'}${API_VERSION}`;
+  return `${versioned}/${trimmed}`;
+}
 
 /**
  * Custom error class for API errors
@@ -63,7 +77,7 @@ export class ApiService {
    */
   private createAxiosInstance(): AxiosInstance {
     const client = axios.create({
-      baseURL: `${API_BASE_URL}/${API_VERSION}`,
+      baseURL: `${API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') + '/' : '/'}${API_VERSION}`,
       timeout: API_TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +88,7 @@ export class ApiService {
     client.interceptors.request.use(
       config => {
         if (this.apiKey) {
-          config.headers.Authorization = `Bearer ${this.apiKey}`;
+          (config.headers as any).Authorization = `Bearer ${this.apiKey}`;
         }
         return config;
       },
@@ -88,13 +102,18 @@ export class ApiService {
         const apiError = this.handleApiError(error);
 
         // Implement retry logic for retryable errors
-        if (apiError.retryable && error.config && !error.config._retry) {
-          error.config._retry = true;
-          error.config._retryCount = (error.config._retryCount || 0) + 1;
+        if (
+          apiError.retryable &&
+          error.config &&
+          !(error.config as any)._retry
+        ) {
+          (error.config as any)._retry = true;
+          (error.config as any)._retryCount =
+            ((error.config as any)._retryCount || 0) + 1;
 
-          if (error.config._retryCount <= 3) {
+          if ((error.config as any)._retryCount <= 3) {
             // Exponential backoff
-            const delay = Math.pow(2, error.config._retryCount) * 1000;
+            const delay = Math.pow(2, (error.config as any)._retryCount) * 1000;
             await new Promise(resolve => setTimeout(resolve, delay));
 
             return client.request(error.config);
@@ -139,8 +158,8 @@ export class ApiService {
         case 422:
           return {
             code: 'VALIDATION_ERROR',
-            message: data?.detail || '入力データに問題があります',
-            details: data,
+            message: (data as any)?.detail || '入力データに問題があります',
+            details: data as any,
             retryable: false,
           };
         case 429:
@@ -153,7 +172,8 @@ export class ApiService {
         case 500:
           return {
             code: 'INTERNAL_ERROR',
-            message: data?.detail || 'サーバー内部エラーが発生しました',
+            message:
+              (data as any)?.detail || 'サーバー内部エラーが発生しました',
             retryable: true,
           };
         case 502:
@@ -167,8 +187,9 @@ export class ApiService {
         default:
           return {
             code: 'NETWORK_ERROR',
-            message: error.message || 'ネットワークエラーが発生しました',
-            details: { status, data },
+            message:
+              (error as any).message || 'ネットワークエラーが発生しました',
+            details: { status, data } as any,
             retryable: true,
           };
       }
@@ -263,21 +284,18 @@ export class ApiService {
     request: ChatCompletionRequest,
     useAgent: boolean = false
   ): AsyncGenerator<ChatCompletionStreamResponse, void, unknown> {
-    const streamRequest = { ...request, stream: true };
+    const streamRequest = { ...request, stream: true } as any;
     const endpoint = useAgent ? '/chat/completions/agent' : '/chat/completions';
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/${API_VERSION}${endpoint}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
-          },
-          body: JSON.stringify(streamRequest),
-        }
-      );
+      const response = await fetch(buildApiUrl(endpoint), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
+        },
+        body: JSON.stringify(streamRequest),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -408,9 +426,9 @@ export class ApiService {
     // Test health endpoint
     try {
       await this.healthCheck();
-      results.endpoints.health = true;
+      (results.endpoints as any).health = true;
     } catch (error) {
-      results.endpoints.health = false;
+      (results.endpoints as any).health = false;
       results.errors.push(`Health check failed: ${error}`);
       results.healthy = false;
     }
@@ -418,27 +436,27 @@ export class ApiService {
     // Test models endpoint
     try {
       await this.getModels();
-      results.endpoints.models = true;
+      (results.endpoints as any).models = true;
     } catch (error) {
-      results.endpoints.models = false;
+      (results.endpoints as any).models = false;
       results.errors.push(`Models endpoint failed: ${error}`);
     }
 
     // Test agent status endpoint
     try {
       await this.getAgentStatus();
-      results.endpoints.agentStatus = true;
+      (results.endpoints as any).agentStatus = true;
     } catch (error) {
-      results.endpoints.agentStatus = false;
+      (results.endpoints as any).agentStatus = false;
       results.errors.push(`Agent status failed: ${error}`);
     }
 
     // Test session creation
     try {
       await this.createSession({ user_id: 'test' });
-      results.endpoints.sessions = true;
+      (results.endpoints as any).sessions = true;
     } catch (error) {
-      results.endpoints.sessions = false;
+      (results.endpoints as any).sessions = false;
       results.errors.push(`Session creation failed: ${error}`);
     }
 

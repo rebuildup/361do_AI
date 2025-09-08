@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl } from '@/services/api';
 import {
   Settings,
   Thermometer,
@@ -85,7 +86,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
     setError(null);
 
     try {
-      const response = await fetch('/v1/config', {
+      const response = await fetch(buildApiUrl('/config'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

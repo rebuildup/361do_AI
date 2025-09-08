@@ -193,23 +193,25 @@ class ContinuousLearningSystem:
         try:
             self.logger.info("Initializing self-learning agent...")
             
-            # エージェント設定
-            config = get_agent_config()
-            
             # エージェント作成
             self.agent = SelfLearningAgent(
                 config_path="config/agent_config.yaml",
                 db_path="data/self_learning_agent.db"
             )
             
-            # エージェント初期化
-            await self.agent.initialize()
+            # セッション初期化
+            session_id = await self.agent.initialize_session(
+                session_id="continuous_learning_session",
+                user_id="learning_system"
+            )
             
-            self.logger.info("Agent initialized successfully")
+            self.logger.info(f"Agent initialized successfully with session: {session_id}")
             return True
             
         except Exception as e:
             self.logger.error(f"Agent initialization error: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     async def start_continuous_learning(self):
@@ -430,15 +432,45 @@ class ContinuousLearningSystem:
             content = learning_data.get('content', '')
             metadata = learning_data.get('metadata', {})
             
-            # 会話データをチューニングデータとして保存
-            await self.agent._collect_learning_data(
-                user_input=content[:500],  # 最初の500文字をユーザー入力として
-                response=content[500:1000] if len(content) > 500 else content,  # 次の500文字をレスポンスとして
-                interaction_id=f"learning_{hashlib.md5(content.encode()).hexdigest()[:8]}"
-            )
+            # コンテンツを分割してユーザー入力とレスポンスに分ける
+            if len(content) > 1000:
+                # 長いコンテンツの場合は分割
+                user_input = content[:500]
+                response = content[500:1000]
+            else:
+                # 短いコンテンツの場合は半分に分割
+                mid_point = len(content) // 2
+                user_input = content[:mid_point]
+                response = content[mid_point:]
+            
+            # インタラクションID生成
+            interaction_id = f"learning_{hashlib.md5(content.encode()).hexdigest()[:8]}"
+            
+            # エージェントのメモリシステムに直接保存
+            if hasattr(self.agent, 'memory_system') and self.agent.memory_system:
+                await self.agent.memory_system.store_conversation(
+                    user_input=user_input,
+                    agent_response=response,
+                    metadata={
+                        "interaction_id": interaction_id,
+                        "learning_epoch": self.current_epoch,
+                        "source": metadata.get('source', 'unknown'),
+                        "conversation_id": metadata.get('conversation_id', ''),
+                        "title": metadata.get('title', '')
+                    }
+                )
+            
+            # エージェント状態の更新
+            if hasattr(self.agent, 'current_state') and self.agent.current_state:
+                self.agent.current_state.total_interactions += 1
+                self.agent.current_state.last_activity = datetime.now()
+            
+            self.logger.debug(f"Learning data processed: {interaction_id}")
             
         except Exception as e:
             self.logger.error(f"Error sending learning data to agent: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
     
     def _record_conversation_learning(self, session_id: str, conversation: Dict[str, Any], cycle_number: int):
         """会話学習記録"""
