@@ -26,6 +26,7 @@ sys.path.insert(0, str(project_root))
 from src.advanced_agent.core.self_learning_agent import SelfLearningAgent
 from src.advanced_agent.config.settings import get_agent_config
 from src.advanced_agent.core.logger import get_logger
+from validate_learning_results import LearningResultValidator
 
 
 class ConversationDataProcessor:
@@ -182,6 +183,24 @@ class ContinuousLearningSystem:
                         FOREIGN KEY (session_id) REFERENCES learning_sessions (session_id)
                     )
                 """)
+
+                # 一意制約とインデックス
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_unique
+                    ON conversation_learning (session_id, content_hash)
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_progress_session_cycle
+                    ON learning_progress (session_id, cycle_number)
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_conv_session_epoch
+                    ON conversation_learning (session_id, learning_epoch)
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_conv_session_source
+                    ON conversation_learning (session_id, source)
+                """)
                 
                 conn.commit()
                 
@@ -318,6 +337,11 @@ class ContinuousLearningSystem:
                 
                 self.logger.info(f"Starting learning cycle {cycle_number}")
                 
+                # サイクル開始時にエポックを先に更新（整合性のため）
+                if self.agent and hasattr(self.agent, 'current_state'):
+                    self.agent.current_state.learning_epoch += 1
+                    self.current_epoch = self.agent.current_state.learning_epoch
+
                 # 会話データをシャッフルして学習
                 random.shuffle(conversations)
                 
@@ -326,10 +350,12 @@ class ContinuousLearningSystem:
                 max_conversations = self.learning_config['max_conversations_per_cycle']
                 
                 conversations_to_process = conversations[:max_conversations]
+                duplicates_skipped_in_cycle = 0
                 
                 for i in range(0, len(conversations_to_process), batch_size):
                     batch = conversations_to_process[i:i + batch_size]
-                    await self._process_conversation_batch(session_id, batch, cycle_number)
+                    dup_skipped = await self._process_conversation_batch(session_id, batch, cycle_number)
+                    duplicates_skipped_in_cycle += dup_skipped
                     
                     # 進捗更新
                     self.total_processed += len(batch)
@@ -338,12 +364,14 @@ class ContinuousLearningSystem:
                     await asyncio.sleep(1)
                 
                 # 学習進捗記録
-                self._record_learning_progress(session_id, cycle_number, len(conversations_to_process))
-                
-                # エージェントの学習エポック更新
-                if self.agent and hasattr(self.agent, 'current_state'):
-                    self.agent.current_state.learning_epoch += 1
-                    self.current_epoch = self.agent.current_state.learning_epoch
+                self._record_learning_progress(
+                    session_id,
+                    cycle_number,
+                    len(conversations_to_process),
+                    {
+                        'duplicates_skipped_in_cycle': duplicates_skipped_in_cycle
+                    }
+                )
                 
                 # 学習間隔待機
                 await asyncio.sleep(self.learning_config['learning_interval'])
@@ -359,9 +387,10 @@ class ContinuousLearningSystem:
                 self.logger.error(f"Error in learning cycle {cycle_number}: {e}")
                 continue
     
-    async def _process_conversation_batch(self, session_id: str, batch: List[Dict[str, Any]], cycle_number: int):
+    async def _process_conversation_batch(self, session_id: str, batch: List[Dict[str, Any]], cycle_number: int) -> int:
         """会話バッチ処理"""
         try:
+            duplicates_skipped = 0
             for conversation in batch:
                 # 会話データを学習データとして処理
                 learning_data = self._convert_to_learning_data(conversation)
@@ -371,11 +400,57 @@ class ContinuousLearningSystem:
                     await self._send_learning_data_to_agent(learning_data)
                     
                     # 学習記録
-                    self._record_conversation_learning(session_id, conversation, cycle_number)
+                    inserted = self._record_conversation_learning(session_id, conversation, cycle_number)
+                    if not inserted:
+                        duplicates_skipped += 1
+            return duplicates_skipped
                 
         except Exception as e:
             self.logger.error(f"Error processing conversation batch: {e}")
-    
+            return 0
+
+    def _score_quality(self, content: str) -> float:
+        """簡易品質スコアリング（0.0 - 1.0）"""
+        try:
+            if not content:
+                return 0.0
+            length = len(content)
+            # 長さスコア（100〜2000文字を好適）
+            if length < 50:
+                length_score = 0.1
+            elif length < 100:
+                length_score = 0.3
+            elif length <= 2000:
+                length_score = 0.8
+            else:
+                length_score = max(0.8 - (length - 2000) / 8000, 0.2)
+
+            # ユニーク文字率
+            unique_ratio = len(set(content)) / max(length, 1)
+            diversity_score = 1.0 if unique_ratio >= 0.25 else 0.5 if unique_ratio >= 0.18 else 0.2
+
+            # 繰り返し検出（連続同一文字）
+            max_run = 1
+            current_run = 1
+            for i in range(1, len(content)):
+                if content[i] == content[i-1]:
+                    current_run += 1
+                    max_run = max(max_run, current_run)
+                else:
+                    current_run = 1
+            repetition_penalty = 0.0 if max_run <= 6 else 0.2 if max_run <= 12 else 0.4
+
+            # ストップワード少なすぎる場合のペナルティ（自然文らしさ）
+            tokens = [t for t in content.split() if t]
+            avg_token_len = sum(len(t) for t in tokens) / max(len(tokens), 1)
+            naturalness_score = 0.8 if 3.0 <= avg_token_len <= 7.0 else 0.5
+
+            base = 0.5 * length_score + 0.3 * diversity_score + 0.2 * naturalness_score
+            score = max(min(base - repetition_penalty, 1.0), 0.0)
+            return float(score)
+        except Exception:
+            return 0.5
+
     def _convert_to_learning_data(self, conversation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """会話データを学習データに変換"""
         try:
@@ -472,15 +547,16 @@ class ContinuousLearningSystem:
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
     
-    def _record_conversation_learning(self, session_id: str, conversation: Dict[str, Any], cycle_number: int):
+    def _record_conversation_learning(self, session_id: str, conversation: Dict[str, Any], cycle_number: int) -> bool:
         """会話学習記録"""
         try:
             content = conversation.get('content', '') or str(conversation.get('messages', []))
             content_hash = hashlib.md5(content.encode()).hexdigest()
+            quality_score = self._score_quality(content)
             
             with sqlite3.connect("data/continuous_learning.db") as conn:
-                conn.execute("""
-                    INSERT INTO conversation_learning 
+                cursor = conn.execute("""
+                    INSERT OR IGNORE INTO conversation_learning 
                     (session_id, conversation_id, source, content_hash, learning_epoch, processed_at, quality_score)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
@@ -490,14 +566,21 @@ class ContinuousLearningSystem:
                     content_hash,
                     self.current_epoch,
                     datetime.now().isoformat(),
-                    0.5  # デフォルト品質スコア
+                    quality_score
                 ))
                 conn.commit()
-                
+                # rowcount は SQLite では -1 になることがあるため、直後に重複確認
+                # 一意制約違反の場合は挿入されない
+                inserted = conn.execute(
+                    "SELECT 1 FROM conversation_learning WHERE session_id = ? AND content_hash = ?",
+                    (session_id, content_hash)
+                ).fetchone() is not None
+                return inserted
         except Exception as e:
             self.logger.error(f"Error recording conversation learning: {e}")
-    
-    def _record_learning_progress(self, session_id: str, cycle_number: int, conversations_processed: int):
+            return False
+
+    def _record_learning_progress(self, session_id: str, cycle_number: int, conversations_processed: int, extra_metrics: Optional[Dict[str, Any]] = None):
         """学習進捗記録"""
         try:
             with sqlite3.connect("data/continuous_learning.db") as conn:
@@ -514,7 +597,8 @@ class ContinuousLearningSystem:
                     json.dumps({
                         'total_processed': self.total_processed,
                         'learning_cycles': self.learning_cycles,
-                        'remaining_time': str(self.end_time - datetime.now())
+                        'remaining_time': str(self.end_time - datetime.now()),
+                        **(extra_metrics or {})
                     })
                 ))
                 conn.commit()
@@ -544,6 +628,14 @@ class ContinuousLearningSystem:
             self.logger.info(f"  Total cycles: {self.learning_cycles}")
             self.logger.info(f"  Total processed: {self.total_processed}")
             self.logger.info(f"  Final epoch: {self.current_epoch}")
+            
+            # 自動レポート生成
+            try:
+                validator = LearningResultValidator()
+                validator.save_report(session_id)
+                self.logger.info("Learning report generated and saved.")
+            except Exception as e:
+                self.logger.error(f"Auto report generation failed: {e}")
             
         except Exception as e:
             self.logger.error(f"Error completing learning session: {e}")

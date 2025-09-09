@@ -1,4 +1,10 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+} from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { cn, generateId } from '@/utils';
 
@@ -35,6 +41,7 @@ interface ToastProviderProps {
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef<Record<string, number>>({});
 
   const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = generateId();
@@ -43,15 +50,28 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 
     // Auto remove after duration
     if (toast.duration !== 0) {
-      setTimeout(() => {
+      const handle = window.setTimeout(() => {
         removeToast(id);
       }, toast.duration || 5000);
+      timersRef.current[id] = handle;
     }
   };
 
   const removeToast = (id: string) => {
+    const handle = timersRef.current[id];
+    if (handle) {
+      clearTimeout(handle);
+      delete timersRef.current[id];
+    }
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(timersRef.current).forEach(clearTimeout);
+    };
+  }, []);
 
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
@@ -73,7 +93,11 @@ const ToastContainer: React.FC<ToastContainerProps> = ({
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+    <div
+      className="fixed top-4 right-4 z-50 space-y-2 max-w-sm"
+      role="status"
+      aria-live="polite"
+    >
       {toasts.map(toast => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
       ))}

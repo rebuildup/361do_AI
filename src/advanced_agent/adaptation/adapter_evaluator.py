@@ -23,6 +23,13 @@ try:
 except ImportError:
     EVALUATE_AVAILABLE = False
     evaluate = None
+    # 型参照エラー回避用のダミー型
+    class HFDataset:  # type: ignore
+        @staticmethod
+        def from_dict(data):
+            return data
+    class PeftModel:  # type: ignore
+        pass
 
 from ..core.config import get_config
 from ..core.logger import get_logger

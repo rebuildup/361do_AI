@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any, Union
 import torch
 import torch.nn as nn
-from torch.quantization import quantize_dynamic, quantize_static
+from torch.quantization import quantize_dynamic
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -270,25 +270,8 @@ class QuantizationOptimizer:
     ) -> nn.Module:
         """静的量子化"""
         try:
-            if calibration_data is None:
-                raise ValueError("静的量子化にはキャリブレーションデータが必要です")
-            
-            # モデルを評価モードに設定
-            model.eval()
-            
-            # キャリブレーション実行
-            for data in calibration_data[:self.config.calibration_samples]:
-                with torch.no_grad():
-                    _ = model(data)
-            
-            # 静的量子化実行
-            quantized_model = quantize_static(
-                model,
-                {nn.Linear},
-                inplace=False
-            )
-            
-            return quantized_model
+            # 現行のPyTorch安定版では本実装は未対応のため未実装扱い
+            raise NotImplementedError("静的量子化は未サポートです")
             
         except Exception as e:
             logger.error(f"静的量子化エラー: {e}")

@@ -164,7 +164,7 @@ class PerformanceCallbackHandler(BaseCallbackHandler):
                     except Exception:
                         pass
                 
-                time.sleep(0.1)  # 100ms間隔
+                time.sleep(0.5)  # 500ms間隔（パフォーマンス最適化）
                 
             except Exception as e:
                 self.logger.log_performance_metric(

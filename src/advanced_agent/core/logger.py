@@ -69,14 +69,15 @@ class StructuredLogger:
         
         # JSON構造化ログ
         if self.enable_json:
+            # JSONはシンプルシンク経由だとクローズ時にI/O例外が起こりやすいため安全に出力
             logger.add(
-                self.log_dir / "agent_structured_{time:YYYY-MM-DD}.json",
+                (self.log_dir / "agent_structured_{time:YYYY-MM-DD}.json").as_posix(),
                 level=self.log_level,
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
                 rotation="1 day",
                 retention="7 days",
                 compression="zip",
-                serialize=False
+                enqueue=True
             )
         
         # エラー専用ログ

@@ -104,7 +104,13 @@ class SelfLearningAgent:
     
     def __init__(self, 
                  config_path: str = "config/advanced_agent.yaml",
-                 db_path: str = "data/self_learning_agent.db"):
+                 db_path: str = "data/self_learning_agent.db",
+                 system_monitor: Optional[SystemMonitor] = None,
+                 memory_system: Optional[LangChainPersistentMemory] = None,
+                 ollama_client: Optional[OllamaClient] = None,
+                 reasoning_engine: Optional[BasicReasoningEngine] = None,
+                 tool_manager: Optional[ToolRegistry] = None,
+                 **kwargs):
         
         self.logger = get_logger()
         self.config_path = config_path
@@ -117,11 +123,11 @@ class SelfLearningAgent:
         self._init_database()
         
         # コアコンポーネント初期化
-        self.memory_system = LangChainPersistentMemory()
-        self.ollama_client = None  # 後で初期化
-        self.reasoning_engine = None  # 後で初期化
-        self.tool_manager = None  # 後で初期化
-        self.system_monitor = SystemMonitor()
+        self.memory_system = memory_system or LangChainPersistentMemory()
+        self.ollama_client = ollama_client  # 後で初期化される場合あり
+        self.reasoning_engine = reasoning_engine  # 後で初期化される場合あり
+        self.tool_manager = tool_manager  # 後で初期化される場合あり
+        self.system_monitor = system_monitor or SystemMonitor()
         self.prompt_manager = None  # 後で初期化
         
         # エージェント状態
@@ -413,7 +419,7 @@ class SelfLearningAgent:
     async def _create_initial_prompt_template(self, session_id: str):
         """初期プロンプトテンプレート作成"""
         
-        initial_prompt = """あなたは361do_AIです。以下の能力を持っています：
+        initial_prompt = """あなたは自己学習型AIエージェントです。以下の能力を持っています：
 
 1. **永続的記憶**: 過去の会話を記憶し、継続的な学習を行います
 2. **自己改善**: プロンプトとチューニングデータを動的に最適化します
@@ -795,11 +801,9 @@ class SelfLearningAgent:
 ツールを使用する必要がない場合は空の配列 [] を回答してください。
 """
             
-            response = await self.ollama_client.generate(
-                prompt=analysis_prompt,
-                temperature=0.3,
-                max_tokens=500
-            )
+            # generateはInferenceRequestを受け取るため簡易ラッパーを使用
+            response_obj = await self.ollama_client.generate_response(analysis_prompt)
+            response = response_obj if isinstance(response_obj, str) else str(response_obj)
             
             if response:
                 import re
@@ -1224,6 +1228,9 @@ class SelfLearningAgent:
     
     async def _save_tuning_data(self, data: TuningData):
         """チューニングデータ保存"""
+        
+        # メモリプールにも追加
+        self.tuning_data_pool.append(data)
         
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()

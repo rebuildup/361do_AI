@@ -1,0 +1,123 @@
+# 統合設定ファイル - 361do_AI
+# Unified Configuration File
+
+# 基本設定
+name: "361do_AI"
+version: "1.0.0"
+description: "361do_AI - 自己学習AIエージェント"
+author: "361do_AI"
+environment: "development"
+
+# データベース設定
+database:
+  type: "sqlite"
+  path: "data/self_learning_agent.db"
+  echo: false
+  pool_size: 5
+  max_overflow: 10
+
+# Ollama設定
+ollama:
+  base_url: "http://localhost:11434"
+  model: "qwen2:1.5b-instruct-q4_k_m"
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  max_tokens: 2048
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 1.0
+
+# メモリ設定
+memory:
+  backend: "chroma"
+  persist_directory: "data/memory"
+  collection_name: "agent_memory"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  chunk_size: 1000
+  chunk_overlap: 200
+  max_memory_size: 10000
+  similarity_threshold: 0.7
+  cleanup_interval: 3600
+
+# 学習設定
+learning:
+  prompt_mutation_rate: 0.1
+  data_crossover_rate: 0.7
+  evolution_generation_size: 5
+  fitness_evaluation_interval: 100
+  reward_decay_factor: 0.95
+  learning_rate: 0.001
+  batch_size: 32
+  max_epochs: 10
+  early_stopping_patience: 3
+  validation_split: 0.2
+
+# 進化設定
+evolution:
+  strategy: "genetic"
+  population_size: 20
+  elite_size: 5
+  mutation_rate: 0.1
+  crossover_rate: 0.8
+  selection_pressure: 2.0
+  diversity_threshold: 0.1
+  convergence_threshold: 0.01
+  max_generations: 100
+  fitness_weights:
+    accuracy: 0.4
+    efficiency: 0.3
+    user_satisfaction: 0.3
+
+# 監視設定
+monitoring:
+  enabled: true
+  prometheus_port: 9090
+  grafana_port: 3000
+  metrics_interval: 60
+  log_level: "INFO"
+  log_file: "logs/agent.log"
+  max_log_size: 104857600 # 100MB
+  backup_count: 5
+  gpu_monitoring: true
+  memory_monitoring: true
+  performance_monitoring: true
+  alert_thresholds:
+    gpu_usage: 0.9
+    memory_usage: 0.8
+    response_time: 10.0
+    error_rate: 0.1
+
+# UI設定
+ui:
+  streamlit_port: 8501
+  fastapi_port: 8000
+  websocket_port: 8001
+  host: "0.0.0.0"
+  debug: false
+  auto_reload: false
+  cors_origins:
+    - "http://localhost"
+    - "http://localhost:3000"
+  max_request_size: 10485760 # 10MB
+  request_timeout: 30
+
+# システム設定
+data_dir: "data"
+logs_dir: "logs"
+models_dir: "models"
+cache_dir: "cache"
+temp_dir: "temp"
+
+# パフォーマンス設定
+max_concurrent_requests: 10
+request_queue_size: 100
+worker_threads: 4
+enable_caching: true
+cache_ttl: 3600
+
+# セキュリティ設定
+enable_auth: false
+secret_key: null
+token_expiry: 3600
+rate_limit: 100

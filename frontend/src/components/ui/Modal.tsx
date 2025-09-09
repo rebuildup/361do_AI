@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { cn, FocusTrap, announceToScreenReader } from '@/utils';
+import { cn } from '@/utils';
+import { FocusTrap, announceToScreenReader } from '@/utils/accessibility';
 
 interface ModalProps {
   isOpen: boolean;
@@ -90,12 +91,12 @@ const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      onClick={handleOverlayClick}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleOverlayClick}
+      />
 
       {/* Modal */}
       <div

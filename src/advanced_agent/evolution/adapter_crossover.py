@@ -255,8 +255,7 @@ class AdapterCrossoverSystem:
                 message=f"Crossover system initialization failed: {e}"
             )
             return False    
-    as
-ync def crossover_adapters(
+    async def crossover_adapters(
         self,
         parent1: Individual,
         parent2: Individual,

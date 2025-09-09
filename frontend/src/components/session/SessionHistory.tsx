@@ -43,9 +43,13 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ className }) => {
       filtered = filtered.filter(
         sessionData =>
           sessionData.session.session_name?.toLowerCase().includes(query) ||
-          sessionData.messages.some(msg =>
-            msg.content.toLowerCase().includes(query)
-          )
+          sessionData.messages.some(msg => {
+            const text =
+              typeof (msg as any).content === 'string'
+                ? (msg as any).content
+                : '';
+            return text.toLowerCase().includes(query);
+          })
       );
     }
 
@@ -75,11 +79,12 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ className }) => {
         case 'date':
           comparison = a.lastActivity.getTime() - b.lastActivity.getTime();
           break;
-        case 'name':
+        case 'name': {
           const nameA = a.session.session_name || '';
           const nameB = b.session.session_name || '';
           comparison = nameA.localeCompare(nameB);
           break;
+        }
         case 'messages':
           comparison = a.messageCount - b.messageCount;
           break;
@@ -124,17 +129,20 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ className }) => {
     URL.revokeObjectURL(url);
   };
 
-  const getSessionSummary = (messages: any[]) => {
+  type Msg = { role: 'user' | 'assistant'; content?: string };
+  const getSessionSummary = (messages: Msg[]) => {
     const userMessages = messages.filter(m => m.role === 'user');
     const assistantMessages = messages.filter(m => m.role === 'assistant');
+
+    const truncate = (s?: string, n = 100) =>
+      s ? (s.length > n ? `${s.slice(0, n)}...` : s) : '';
 
     return {
       userMessages: userMessages.length,
       assistantMessages: assistantMessages.length,
       totalMessages: messages.length,
-      firstMessage: messages[0]?.content?.substring(0, 100) + '...' || '',
-      lastMessage:
-        messages[messages.length - 1]?.content?.substring(0, 100) + '...' || '',
+      firstMessage: truncate(messages[0]?.content),
+      lastMessage: truncate(messages[messages.length - 1]?.content),
     };
   };
 

@@ -49,6 +49,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeAssistantIdRef = useRef<string | null>(null);
+  const lastPromptRef = useRef<string>('');
 
   // Streaming functionality
   const streaming = useStreaming({
@@ -60,9 +62,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
         isProcessing: true,
         language: 'ja', // Default, will be detected
       });
+      // Align placeholder id with streaming id
+      if (state.currentSession && activeAssistantIdRef.current) {
+        const aligned = (state.messages as UIMessage[]).map(m =>
+          m.id === activeAssistantIdRef.current
+            ? { ...m, id: messageId, isStreaming: true }
+            : m
+        );
+        updateSessionMessages(state.currentSession.session_id, aligned);
+        activeAssistantIdRef.current = messageId;
+      } else {
+        activeAssistantIdRef.current = messageId;
+      }
     },
     onMessageUpdate: (messageId, content) => {
-      const updatedMessages = (messages as UIMessage[]).map(msg =>
+      const updatedMessages = (state.messages as UIMessage[]).map(msg =>
         msg.id === messageId ? { ...msg, content, isStreaming: true } : msg
       );
       // Update both global state and session storage
@@ -71,7 +85,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
       }
     },
     onMessageComplete: (messageId, content, reasoning) => {
-      const updatedMessages = (messages as UIMessage[]).map(msg =>
+      const updatedMessages = (state.messages as UIMessage[]).map(msg =>
         msg.id === messageId
           ? { ...msg, content, reasoning, isStreaming: false }
           : msg
@@ -161,10 +175,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
   };
 
   // Retry with exponential backoff
-  const retryStreaming = async (prompt: string) => {
+  const retryStreaming = async () => {
     try {
       setRetryCount(prev => prev + 1);
-      await streaming.retryStreaming(prompt, state.currentSession?.session_id);
+      await streaming.retryStreaming(
+        lastPromptRef.current,
+        state.currentSession?.session_id
+      );
     } catch (error) {
       setConnectionError(
         error instanceof Error ? error.message : 'Retry failed'
@@ -198,6 +215,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
       const prompt = inputValue.trim();
       setInputValue('');
       setConnectionError(null);
+      lastPromptRef.current = prompt;
 
       // Add user message
       const updatedMessagesWithUser = [
@@ -230,6 +248,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
           updatedMessagesWithAssistant
         );
       }
+      activeAssistantIdRef.current = assistantMessage.id;
 
       try {
         // Try real streaming first, fallback to simulation
@@ -248,20 +267,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = memo(({ className }) => {
           const fullResponse = `ご質問ありがとうございます。「${prompt}」について回答いたします。\n\n新しいReactベースのUIでは、以下の機能が実装されています：\n\n• リアルタイムストリーミング応答\n• メッセージ履歴の管理\n• レスポンシブデザイン\n• 推論セクションの表示\n• コピー機能\n• エラーハンドリングと再試行メカニズム\n\nこれらの機能により、より良いユーザーエクスペリエンスを提供しています。`;
 
           const reasoning = `ユーザーの質問「${prompt}」に対して、現在実装されている機能を中心に回答しました。リアルタイムストリーミング機能とエラーハンドリングが正常に動作していることを確認できます。`;
-
-          // Update the assistant message ID for simulation
-          const updatedAssistantMessage = { ...assistantMessage };
-          const updatedMessages = (messages as UIMessage[]).map(msg =>
-            msg.id === assistantMessage.id
-              ? { ...msg, id: updatedAssistantMessage.id }
-              : msg
-          );
-          if (state.currentSession) {
-            updateSessionMessages(
-              state.currentSession.session_id,
-              updatedMessages
-            );
-          }
 
           await streaming.simulateStreaming(fullResponse, reasoning);
         }

@@ -28,6 +28,11 @@ except ImportError:
     QLORA_AVAILABLE = False
     Trainer = None
     TrainingArguments = None
+    # 型参照エラー回避用のダミー型
+    class HFDataset:  # type: ignore
+        @staticmethod
+        def from_dict(data):
+            return data
 
 from ..core.config import get_config
 from ..core.logger import get_logger

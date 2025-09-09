@@ -517,3 +517,7 @@ class PersistentMemoryManager:
         """リソースのクリーンアップ"""
         if hasattr(self, 'memory_system'):
             self.memory_system.close()
+
+    async def cleanup(self) -> None:
+        """非同期クリーンアップ互換"""
+        self.close()

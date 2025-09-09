@@ -64,8 +64,10 @@ const initialState: ErrorState = {
 
 function errorReducer(state: ErrorState, action: ErrorAction): ErrorState {
   switch (action.type) {
-    case 'SET_GLOBAL_ERROR':
-      const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    case 'SET_GLOBAL_ERROR': {
+      const errorId = `error_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 11)}`;
       return {
         ...state,
         globalError: action.payload.error,
@@ -81,12 +83,12 @@ function errorReducer(state: ErrorState, action: ErrorAction): ErrorState {
           },
         ],
       };
+    }
 
     case 'CLEAR_GLOBAL_ERROR':
       return {
         ...state,
         globalError: null,
-        retryCount: 0,
       };
 
     case 'SET_NETWORK_STATUS':

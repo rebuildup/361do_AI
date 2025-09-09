@@ -9,6 +9,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
+import argparse
 
 
 class LearningResultValidator:
@@ -248,49 +249,63 @@ class LearningResultValidator:
 
 def main():
     """メイン関数"""
+    parser = argparse.ArgumentParser(description="学習結果検証")
+    parser.add_argument("--session-id", type=str, help="検証するセッションID")
+    parser.add_argument("--save", action="store_true", help="レポートをファイルに保存")
+    parser.add_argument("--output", type=str, default=None, help="保存先ファイルパス")
+    args = parser.parse_args()
+
     validator = LearningResultValidator()
-    
+
+    if args.session_id:
+        session_id = args.session_id
+        report = validator.generate_report(session_id)
+        print(report)
+        if args.save:
+            validator.save_report(session_id, output_file=args.output)
+        return
+
     print("=" * 80)
     print("📊 学習結果検証システム")
     print("=" * 80)
     print()
-    
+
     # 全セッション取得
     sessions = validator.get_all_sessions()
-    
+
     if not sessions:
         print("学習セッションが見つかりません")
         return
-    
+
     print("利用可能な学習セッション:")
     for i, session in enumerate(sessions):
         status_icon = "✅" if session['status'] == 'completed' else "🔄" if session['status'] == 'running' else "❌"
         print(f"  {i+1}. {status_icon} {session['session_id']} ({session['status']})")
-    
+
     print()
-    
+
     # セッション選択
     try:
         choice = int(input("検証するセッション番号を選択してください: ")) - 1
         if 0 <= choice < len(sessions):
             selected_session = sessions[choice]
             session_id = selected_session['session_id']
-            
+
             print()
             print("検証中...")
-            
+
             # レポート生成・表示
             report = validator.generate_report(session_id)
             print(report)
-            
+
             # レポート保存
             save_choice = input("\nレポートをファイルに保存しますか？ (y/N): ")
             if save_choice.lower() == 'y':
                 validator.save_report(session_id)
-            
+
         else:
             print("無効な選択です")
-            
+
     except ValueError:
         print("無効な入力です")
     except KeyboardInterrupt:

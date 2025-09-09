@@ -22,7 +22,11 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   className,
   label,
 }) => {
-  const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+  const safeMax =
+    Number.isFinite(max) && (max as number) > 0 ? (max as number) : 100;
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const raw = (safeValue / safeMax) * 100;
+  const percentage = Math.min(Math.max(raw, 0), 100);
 
   const sizeClasses = {
     sm: 'h-1',

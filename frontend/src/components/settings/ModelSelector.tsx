@@ -209,6 +209,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           'hover:border-gray-600 focus:outline-none focus:border-gray-600',
           isLoading && 'opacity-50 cursor-not-allowed'
         )}
+        data-testid="model-selector-button"
       >
         <div className="flex items-center gap-2">
           {isLoading ? (
@@ -231,7 +232,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg z-50 max-h-60 overflow-y-auto animate-scale-in backdrop-blur-sm">
+        <div
+          className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg z-50 max-h-60 overflow-y-auto animate-scale-in backdrop-blur-sm"
+          data-testid="model-selector-menu"
+        >
           {models.map(model => {
             const isSelected = model.id === state.activeModel;
             const status = modelStatuses[model.id];
@@ -249,6 +253,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                   isSelected && 'bg-gray-800',
                   !isAvailable && 'opacity-50 cursor-not-allowed'
                 )}
+                data-testid="model-selector-item"
               >
                 {getStatusIcon(model.id)}
                 <div className="flex-1 min-w-0">
