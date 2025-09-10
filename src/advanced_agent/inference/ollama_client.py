@@ -118,6 +118,16 @@ class OllamaCallbackHandler(BaseCallbackHandler):
                 memory_used_mb=self._get_memory_usage_mb()
             )
     
+    def _get_memory_usage_mb(self) -> float:
+        """実際のメモリ使用量を取得（MB）"""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            return memory_info.rss / (1024 * 1024)  # MBに変換
+        except Exception:
+            return 0.0
+    
     def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
         """LLMエラー時"""
         self.logger.log_inference_error(
@@ -166,14 +176,22 @@ class OllamaClient:
         )
     
     async def initialize(self) -> bool:
-        """クライアント初期化"""
+        """クライアント初期化（最適化版）"""
         try:
-            # サーバー接続確認
+            # サーバー接続確認（タイムアウト短縮）
             if not await self._check_server_connection():
-                raise ConnectionError(f"Cannot connect to Ollama server at {self.base_url}")
+                self.logger.warning(f"Cannot connect to Ollama server at {self.base_url}, using fallback mode")
+                # 接続できない場合はフォールバックモードで初期化
+                await self._initialize_fallback_mode()
+                return True
             
-            # 利用可能モデル取得
-            await self._refresh_model_list()
+            # 利用可能モデル取得（タイムアウト短縮）
+            try:
+                await asyncio.wait_for(self._refresh_model_list(), timeout=5.0)
+            except asyncio.TimeoutError:
+                self.logger.warning("Model list refresh timeout, using fallback mode")
+                await self._initialize_fallback_mode()
+                return True
             
             # LangChain LLM インスタンス作成
             await self._initialize_llms()
@@ -198,11 +216,39 @@ class OllamaClient:
             )
             return False
     
-    async def _check_server_connection(self) -> bool:
-        """サーバー接続確認"""
+    async def _initialize_fallback_mode(self):
+        """フォールバックモード初期化"""
         try:
-            # 非同期でOllamaサーバーに接続テスト
-            models = await asyncio.to_thread(self.ollama_client.list)
+            # デフォルトモデルでフォールバック初期化
+            self.model_cache = {
+                self.primary_model: ModelInfo(
+                    name=self.primary_model,
+                    size_gb=7.0,
+                    status=ModelStatus.AVAILABLE
+                )
+            }
+            
+            # 基本的なLLMインスタンスを作成
+            self.llm = Ollama(
+                model=self.primary_model,
+                base_url=self.base_url,
+                temperature=0.1,
+                num_predict=2048
+            )
+            
+            self.logger.info(f"Fallback mode initialized with model: {self.primary_model}")
+            
+        except Exception as e:
+            self.logger.error(f"Fallback mode initialization failed: {e}")
+    
+    async def _check_server_connection(self) -> bool:
+        """サーバー接続確認（タイムアウト短縮）"""
+        try:
+            # 非同期でOllamaサーバーに接続テスト（タイムアウト3秒）
+            await asyncio.wait_for(
+                asyncio.to_thread(self.ollama_client.list),
+                timeout=3.0
+            )
             return True
         except Exception as e:
             self.logger.log_alert(

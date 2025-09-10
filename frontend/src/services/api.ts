@@ -31,8 +31,8 @@ export const API_BASE_URL =
   (typeof import.meta !== 'undefined' &&
     (import.meta as any).env?.VITE_API_BASE) ||
   (typeof window !== 'undefined' && (window as any).__API_BASE__) ||
-  // Default to same-origin for both dev and prod unless explicitly overridden
-  '';
+  // Default to localhost:8000 for production builds
+  'http://localhost:8000';
 export const API_VERSION = 'v1';
 export const API_TIMEOUT = 60000; // 60 seconds for agent processing
 export const isBackendConfigured: boolean = !!API_BASE_URL;

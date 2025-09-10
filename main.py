@@ -204,7 +204,7 @@ def run_streamlit_ui(args):
         
         # Streamlitを起動（ホストとポートを指定）
         cmd = [
-            sys.executable, "-m", "streamlit", "run", "webui.py",
+            sys.executable, "-m", "streamlit", "run", "src/advanced_agent/interfaces/streamlit_ui.py",
             "--server.port", str(port),
             "--server.address", args.host,
             "--server.headless", "true"

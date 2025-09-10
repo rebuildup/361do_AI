@@ -15,8 +15,11 @@ from langchain.memory import ConversationSummaryBufferMemory
 from langchain_community.vectorstores import Chroma
 import chromadb
 from chromadb.config import Settings
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms import Ollama
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ImportError:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_ollama import OllamaLLM
 from langchain.schema import BaseMessage
 from sqlalchemy import create_engine, Column, String, DateTime, Float, Text, Integer
 from sqlalchemy.orm import declarative_base
@@ -109,7 +112,7 @@ class LangChainPersistentMemory:
         )
         
         # 要約用LLM（軽量モデル）
-        self.summary_llm = Ollama(
+        self.summary_llm = OllamaLLM(
             model=summary_model,
             base_url=ollama_base_url,
             temperature=0.1
